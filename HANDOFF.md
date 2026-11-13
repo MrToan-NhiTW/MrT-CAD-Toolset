@@ -36,3 +36,7 @@
 - Cả hai bắt đầu từ cùng commit nền, làm trên nhánh khác nhau, ghi rõ phạm vi công việc.
 - Không đưa DWG thật, Excel công việc, token, hồ sơ người dùng hay log môi trường vào kho nếu chưa được yêu cầu và xem xét.
 - Trước hợp nhất: đọc cả hai nhánh, kiểm tra xung đột và tương tác giữa thay đổi, chạy build/kiểm thử phù hợp, cập nhật bàn giao và tạo setup mới sau khi hợp nhất.
+
+## Theo dõi chat và phục hồi
+
+- Xem [hướng dẫn theo dõi context và phục hồi](THEO_DOI_VA_PHUC_HOI_CONTEXT_MRT.md) khi tiếp tục từ chat hoặc máy khác. Tài liệu này ghi rõ giới hạn của bản sao nhật ký và cách kiểm tra số lần nén theo yêu cầu.
