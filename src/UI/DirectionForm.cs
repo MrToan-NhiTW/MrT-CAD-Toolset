@@ -1,0 +1,25 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+using MedGas2024.Core;
+namespace MedGas2024.UI
+{
+    public sealed class DirectionForm : Form
+    {
+        public DirectionOptions Value{get;private set;}
+        public DirectionForm(int selectedCount,double viewFactor)
+        {
+            Text="Mr.T Sửa hướng chữ tuyến | 2.0.1.6";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(900,760);MinimumSize=new Size(880,730);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
+            var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(18),RowCount=6,ColumnCount=1};root.RowStyles.Add(new RowStyle(SizeType.Absolute,98));root.RowStyles.Add(new RowStyle(SizeType.Absolute,40));root.RowStyles.Add(new RowStyle(SizeType.Absolute,156));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,44));root.RowStyles.Add(new RowStyle(SizeType.Absolute,22));Controls.Add(root);
+            root.Controls.Add(new Label{Name="DirectionRule",Text="NGANG: trái → phải. DỌC: trên → dưới.\r\nLinetype generation = Disabled; PLINEGEN=0 cho đường vẽ mới sau khi áp dụng.\r\nGiữ một polyline và tọa độ/bulge/width/Layer/màu/Scale.\r\n"+(selectedCount>0?"Đã chọn sẵn "+selectedCount+" đối tượng.":"Chọn các tuyến trên bản vẽ sau khi nhận thông số."),Dock=DockStyle.Fill},0,0);
+            var mode=new ComboBox{Name="DirectionMode",DropDownStyle=ComboBoxStyle.DropDownList,Dock=DockStyle.Fill};mode.Items.AddRange(new object[]{"Áp quy tắc / cập nhật nhãn cho các tuyến chọn","Khôi phục nét gốc, xóa đúng nhãn liên kết của các tuyến chọn"});mode.SelectedIndex=0;root.Controls.Add(mode,0,1);
+            var fields=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=4};fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,65));fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,35));for(int i=0;i<4;i++)fields.RowStyles.Add(new RowStyle(SizeType.Absolute,38));
+            var manual=new CheckBox{Name="DirectionManualHeight",Text="Nhập cao chữ thủ công (đơn vị Model)",AutoSize=true};var height=Number("DirectionHeight",.000001M,1000000000,1,6);height.Enabled=false;manual.CheckedChanged+=delegate{height.Enabled=manual.Checked;};fields.Controls.Add(manual,0,0);fields.Controls.Add(height,1,0);
+            var pad=Number("DirectionPadding",.05M,2,.25M,2);Field(fields,1,"Hở chữ / cao chữ",pad);var corner=Number("DirectionCorner",.1M,20,1.5M,2);Field(fields,2,"Khoảng tránh cút / cao chữ",corner);var repeat=Number("DirectionRepeat",.1M,20,1,2);Field(fields,3,"Hệ số nhịp nhãn (1 = theo nét nguồn)",repeat);root.Controls.Add(fields,0,2);
+            root.Controls.Add(new Label{Name="DirectionNotes",Text="Để ép hướng đọc, chữ U trên tuyến được thay bằng nhãn MText có nền che nét; nét đối tượng đặt Continuous. Nét gốc được lưu để khôi phục. Không đổi định nghĩa dùng chung.\r\nCỡ tự động = cỡ nét nguồn × tỷ lệ nét × hệ số hiển thị ("+Profile.N(viewFactor)+"). Có thể nhập tay để đối chiếu bản in. Nhãn là đối tượng theo đơn vị Model, không tự đổi theo mọi viewport.\r\nChạy lại tool sau STRETCH/JOIN/COPY hoặc đổi Scale/Layer để cập nhật; chưa tự theo dõi sửa tuyến. Không đặt nhãn trên đoạn cong hoặc đoạn quá ngắn. Nền nhãn có thể che chi tiết nằm ngay dưới chữ.\r\nQuy tắc tính theo WCS XY; đường nghiêng mặt phẳng/3D, block/Xref và Layer khóa được bỏ qua.",Dock=DockStyle.Fill},0,3);
+            var buttons=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft};var apply=new Button{Name="ReviewDirection",Text="Kiểm tra phạm vi / Tiếp tục…",AutoSize=true};apply.Click+=delegate{try{Value=new DirectionOptions{Restore=mode.SelectedIndex==1,HeightOverride=manual.Checked?(double)height.Value:0,ViewFactor=viewFactor,PaddingRatio=(double)pad.Value,CornerRatio=(double)corner.Value,RepeatMultiplier=(double)repeat.Value};Value.Validate();DialogResult=DialogResult.OK;Close();}catch(Exception ex){MessageBox.Show(this,ex.Message,"Kiểm tra hướng chữ");}};var cancel=new Button{Name="CancelDirection",Text="Hủy",AutoSize=true,DialogResult=DialogResult.Cancel};cancel.Click+=delegate{DialogResult=DialogResult.Cancel;Close();};buttons.Controls.Add(apply);buttons.Controls.Add(cancel);root.Controls.Add(buttons,0,4);root.Controls.Add(new Label{Text="workflow by Mr.Toan-NhiTW",Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleRight,Font=new Font("Segoe UI",8.5F),ForeColor=Color.DimGray},0,5);mode.SelectedIndexChanged+=delegate{fields.Enabled=mode.SelectedIndex==0;};AcceptButton=apply;CancelButton=cancel;
+        }
+        private static NumericUpDown Number(string name,decimal min,decimal max,decimal value,int decimals){return new NumericUpDown{Name=name,Minimum=min,Maximum=max,DecimalPlaces=decimals,Value=value,Dock=DockStyle.Fill};}
+        private static void Field(TableLayoutPanel p,int row,string text,Control c){p.Controls.Add(new Label{Text=text,Dock=DockStyle.Fill,Padding=new Padding(0,7,0,0)},0,row);p.Controls.Add(c,1,row);}
+    }
+}

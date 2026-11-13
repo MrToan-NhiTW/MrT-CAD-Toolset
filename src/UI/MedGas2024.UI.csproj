@@ -1,0 +1,16 @@
+﻿<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\Common.props" />
+  <PropertyGroup>
+    <ProjectGuid>{40EEB159-2D3C-4E82-8111-3079D2640603}</ProjectGuid>
+    <AssemblyName>MedGas2024.UI</AssemblyName><RootNamespace>MedGas2024.UI</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="UiStyle.cs" /><Compile Include="DrawingBrowser.cs" /><Compile Include="DrawingManagerForm.cs" /><Compile Include="CurrentDefinitionForm.cs" /><Compile Include="PipePickerForm.cs" /><Compile Include="ScaleForm.cs" /><Compile Include="DirectionForm.cs" /><Compile Include="BatchEditForm.cs" /><Compile Include="LabelManagerForm.cs" /><Compile Include="LabelManagerShell.cs" /><Compile Include="ManagerForm.cs" /><Compile Include="RibbonControls.cs" /><Compile Include="RowEditorForm.cs" /><Compile Include="NewSystemForm.cs" /><Compile Include="AciPicker.cs" /><Compile Include="ColorGroupForm.cs" /><Reference Include="System.Windows.Forms" /><Reference Include="System.Drawing" />
+    <ProjectReference Include="..\Core\MedGas2024.Core.csproj"><Project>{40EEB159-2D3C-4E82-8111-3079D2640601}<ItemGroup><Compile Include="LegacyMapForm.cs" /></ItemGroup>
+</Project><Name>MedGas2024.Core</Name></ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+<ItemGroup><Compile Include="FamilySizesForm.cs" /></ItemGroup>
+<ItemGroup><Compile Include="LegendForm.cs" /></ItemGroup>
+<ItemGroup><Compile Include="LegacyMapForm.cs" /></ItemGroup>
+</Project>

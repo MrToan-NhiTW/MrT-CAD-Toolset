@@ -1,0 +1,35 @@
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Collections.Generic;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.Colors;
+using Autodesk.AutoCAD.Runtime;
+using MedGas2024.Core;
+using MedGas2024.Engine;
+[assembly:CommandClass(typeof(FamilyRuntimeTests))]
+public static class FamilyRuntimeTests
+{
+    static List<string> log=new List<string>();static void Check(bool ok,string text){if(!ok)throw new System.Exception(text);log.Add("PASS: "+text);}
+    static bool Reject(Action a){try{a();return false;}catch(InvalidOperationException){return true;}}
+    static int Count(Database db,ObjectId table){using(var tr=db.TransactionManager.StartOpenCloseTransaction())return ((SymbolTable)tr.GetObject(table,OpenMode.ForRead)).Cast<ObjectId>().Count();}
+    static string SourceState(Database db,ObjectId pipe){var info=FamilyService.Read(db,pipe);return info.Fingerprint+"|"+info.Scale+"|"+info.Width+"|"+info.Text;}
+    [CommandMethod("MRTFAMILYTEST",CommandFlags.Modal)]public static void Run(){log.Clear();var previous=HostApplicationServices.WorkingDatabase;string root=Directory.GetParent(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)).FullName;try{using(var db=new Database(true,true)){
+        HostApplicationServices.WorkingDatabase=db;ObjectId style,layer,pipe;using(var tr=db.TransactionManager.StartTransaction()){
+            var styles=(TextStyleTable)tr.GetObject(db.TextStyleTableId,OpenMode.ForWrite);var st=new TextStyleTableRecord{Name="FAMILY_STYLE",FileName="arial.ttf",XScale=1.2,TextSize=0};styles.Add(st);tr.AddNewlyCreatedDBObject(st,true);st.Font=new Autodesk.AutoCAD.GraphicsInterface.FontDescriptor("Arial",true,false,0,34);style=st.ObjectId;
+            var layers=(LayerTable)tr.GetObject(db.LayerTableId,OpenMode.ForWrite);var l=new LayerTableRecord{Name="Mr.T_CO2_D15_RAW",Color=Color.FromColorIndex(ColorMethod.ByAci,5),LineWeight=LineWeight.LineWeight025};layers.Add(l);tr.AddNewlyCreatedDBObject(l,true);l.LinetypeObjectId=db.ContinuousLinetype;layer=l.ObjectId;tr.Commit();}
+        string lin=Path.Combine(root,"evidence","family-native-source.lin");File.WriteAllText(lin,"*FAMILY_U,source\nA,40,-8,[\"D15.CO2\",FAMILY_STYLE,S=2.5,U=0,X=-4,Y=-1],-8\n",System.Text.Encoding.ASCII);db.LoadLineTypeFile("FAMILY_U",lin);ObjectId sourceType;using(var tr=db.TransactionManager.StartTransaction()){
+            sourceType=((LinetypeTable)tr.GetObject(db.LinetypeTableId,OpenMode.ForRead))["FAMILY_U"];var t=(LinetypeTableRecord)tr.GetObject(sourceType,OpenMode.ForWrite);t.CreateExtensionDictionary();var d=(DBDictionary)tr.GetObject(t.ExtensionDictionary,OpenMode.ForWrite);var x=new Xrecord();d.SetAt("SOURCE_TEST_MARKER",x);tr.AddNewlyCreatedDBObject(x,true);using(var data=new ResultBuffer(new TypedValue(1000,"keep-original")))x.Data=data;
+            var bt=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead);var ms=(BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace],OpenMode.ForWrite);var p=new Polyline();p.AddVertexAt(0,new Point2d(0,0),0,15,15);p.AddVertexAt(1,new Point2d(500,0),0,15,15);ms.AppendEntity(p);tr.AddNewlyCreatedDBObject(p,true);p.LayerId=layer;p.LinetypeId=sourceType;p.Color=Color.FromRgb(12,130,210);p.LinetypeScale=.15;pipe=p.ObjectId;tr.Commit();}
+        var source=FamilyService.Read(db,pipe);Check(source.Prefix=="Mr.T"&&source.Code=="CO2"&&source.Suffix=="RAW"&&source.Color=="RGB 12,130,210"&&source.Scale==.15&&source.Width==15,"Source resolves actual type/color overrides and constant width, not the Layer's Continuous/ACI defaults");
+        string original=SourceState(db,pipe);int layersBefore=Count(db,db.LayerTableId),typesBefore=Count(db,db.LinetypeTableId),stylesBefore=Count(db,db.TextStyleTableId);var request=new FamilyRequest{Code="CO2",Suffix="RAW",Diameters="15,28,35"};var plan=FamilyService.Inspect(db,source,request);Check(plan.Rows.Count(r=>r.Create)==2&&!plan.Rows.Single(r=>r.Diameter==15).Create&&Count(db,db.LayerTableId)==layersBefore&&Count(db,db.LinetypeTableId)==typesBefore,"Preview measures new labels in scratch and keeps existing D15 untouched");
+        Check(Reject(()=>FamilyService.Apply(db,source,request,plan,true))&&Count(db,db.LayerTableId)==layersBefore&&Count(db,db.LinetypeTableId)==typesBefore&&SourceState(db,pipe)==original,"Injected creation failure rolls back all new symbols and leaves source unchanged");
+        Check(FamilyService.Apply(db,source,request,plan)==2,"Creates two new same-family sizes in one transaction");var rows=DrawingService.Read(db);foreach(int size in new[]{28,35}){var row=rows.Single(r=>r.LayerName=="Mr.T_CO2_D"+size+"_RAW");Check(row.HasFamilyDefaults&&row.FamilyScale==.15&&row.FamilyWidth==15&&row.ColorText==source.Color,"New D"+size+" stores sampled assignment defaults and actual RGB Layer color");using(var tr=db.TransactionManager.StartOpenCloseTransaction()){var lt=(LinetypeTable)tr.GetObject(db.LinetypeTableId,OpenMode.ForRead);var t=(LinetypeTableRecord)tr.GetObject(lt[row.LinetypeName],OpenMode.ForRead);Check(t.TextAt(1)=="D"+size+".CO2"&&t.ShapeStyleAt(1)==style&&t.ShapeScaleAt(1)==2.5&&t.DashLengthAt(0)==40&&Math.Abs(t.DashLengthAt(1)-t.DashLengthAt(2))<1e-10,"New native record retains source font/height/dash and uses measured symmetric gaps");}}
+        Check(SourceState(db,pipe)==original&&Count(db,db.TextStyleTableId)==stylesBefore,"Existing entity, source definition and style remain unchanged");using(var tr=db.TransactionManager.StartOpenCloseTransaction()){var t=(LinetypeTableRecord)tr.GetObject(sourceType,OpenMode.ForRead);var d=(DBDictionary)tr.GetObject(t.ExtensionDictionary,OpenMode.ForRead);using(var values=((Xrecord)tr.GetObject(d.GetAt("SOURCE_TEST_MARKER"),OpenMode.ForRead)).Data)Check(Convert.ToString(values.AsArray()[0].Value)=="keep-original","Source extension dictionary survives cloning unchanged");}
+        var repeat=FamilyService.Inspect(db,source,request);Check(repeat.Rows.All(r=>!r.Create)&&FamilyService.Apply(db,source,request,repeat)==0,"Repeated creation skips existing full names without updating them");
+        var more=new FamilyRequest{Code="CO2",Suffix="RAW",Diameters="42"};var stale=FamilyService.Inspect(db,source,more);using(var tr=db.TransactionManager.StartTransaction()){((Entity)tr.GetObject(pipe,OpenMode.ForWrite)).Color=Color.FromColorIndex(ColorMethod.ByAci,2);tr.Commit();}Check(Reject(()=>FamilyService.Apply(db,source,more,stale)),"A changed sample cannot be used after review");
+        db.SaveAs(Path.Combine(root,"evidence","family-regression.dwg"),DwgVersion.AC1032);
+    }log.Add("RESULT: PASS; scratch Database only. Native U/REVERSE rendering, creation Undo and Select Similar require live CAD checks.");}catch(System.Exception ex){log.Add("RESULT: FAIL");log.Add(ex.ToString());}finally{HostApplicationServices.WorkingDatabase=previous;File.WriteAllLines(Path.Combine(root,"evidence","family-runtime-tests.txt"),log);var doc=Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument;if(doc!=null)doc.Editor.WriteMessage("\n"+String.Join("\n",log)+"\n");}}
+}

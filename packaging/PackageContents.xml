@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.1.6" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{62AE5DD0-EA99-4EF5-B0B5-28BDBDA14CC6}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
+  <CompanyDetails Name="Mr.Toan-NhiTW" />
+  <Components Description="AutoCAD 2024 x64 - .NET Framework 4.8">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.3" SeriesMax="R24.3" />
+    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.1.6" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
+      <AssemblyMappings><AssemblyMappingFolder Path="./Contents/Win64" /></AssemblyMappings>
+      <Commands GroupName="MRT_CAD_TOOLSET">
+        <Command Global="MRTUNIFYR" Local="MRTUNIFYR" /><Command Global="MRTDENSITY" Local="MRTDENSITY" /><Command Global="MRTTABLEMASK" Local="MRTTABLEMASK" /><Command Global="MRTJOIN" Local="MRTJOIN" /><Command Global="MRTJOINTOL" Local="MRTJOINTOL" /><Command Global="MRTBREAK" Local="MRTBREAK" /><Command Global="MRTALIASES" Local="MRTALIASES" />
+        <Command Global="MRTVIEW" Local="MRTVIEW" />
+        <Command Global="MRTISOADD" Local="MRTISOADD" /><Command Global="MRTBLOCKLAY" Local="MRTBLOCKLAY" /><Command Global="MRTBLOCKMERGE" Local="MRTBLOCKMERGE" /><Command Global="MRTSELLAYER" Local="MRTSELLAYER" /><Command Global="MRTALIGNR" Local="MRTALIGNR" /><Command Global="MRTSEL" Local="MRTSEL" /><Command Global="MRTPICKSYSTEM" Local="MRTPICKSYSTEM" /><Command Global="MRTGROUP" Local="MRTGROUP" /><Command Global="MRTR0" Local="MRTR0" /><Command Global="MRTTOOLS" Local="MRTTOOLS" />
+        <Command Global="MRTLTYPE" Local="MRTLTYPE" />
+        <Command Global="KHIYTE" Local="KHIYTE" />
+        <Command Global="MRTPIPE" Local="MRTPIPE" /><Command Global="MRTFIXTEXT" Local="MRTFIXTEXT" /><Command Global="MRTSCALE" Local="MRTSCALE" /><Command Global="MRTHELP" Local="MRTHELP" /><Command Global="MRTRIBBON" Local="MRTRIBBON" />
+      <Command Global="MRTISO" Local="MRTISO" /><Command Global="MRTUNISO" Local="MRTUNISO" /><Command Global="MRTADDSIZES" Local="MRTADDSIZES" /><Command Global="MRTLEGEND" Local="MRTLEGEND" /><Command Global="MRTLEGEDIT" Local="MRTLEGEDIT" /><Command Global="MRTLEGSYNC" Local="MRTLEGSYNC" /><Command Global="MRTROOMS" Local="MRTROOMS" /><Command Global="MRTRESTORERAW" Local="MRTRESTORERAW" /></Commands>
+    </ComponentEntry>
+    <ComponentEntry AppName="MrT.Z0Clean" AppType="Lisp" ModuleName="./Contents/Win64/MrT_Z0Clean.lsp" PerDocument="True" LoadOnCommandInvocation="True" LoadOnAppearance="False">
+      <Commands GroupName="MRT_Z0_CLEAN">
+        <Command Global="MRTZ0" Local="MRTZ0" /><Command Global="MRTZ0CLEAN" Local="MRTZ0CLEAN" /><Command Global="MRTZ0SCAN" Local="MRTZ0SCAN" /><Command Global="MRTZ0HELP" Local="MRTZ0HELP" />
+      </Commands>
+    </ComponentEntry>
+    <ComponentEntry AppName="MrT.ABC2Font" AppType="Lisp" ModuleName="./Contents/Win64/MrT_ABC2Font.lsp" PerDocument="True" LoadOnCommandInvocation="True" LoadOnAppearance="False">
+      <Commands GroupName="MRT_ABC2FONT"><Command Global="MRTFONT" Local="MRTFONT" /><Command Global="MRTFONTALL" Local="MRTFONTALL" /><Command Global="MRTFONTCHECK" Local="MRTFONTCHECK" /></Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>
