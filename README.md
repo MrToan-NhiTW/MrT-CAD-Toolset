@@ -1,6 +1,6 @@
 # Mr.T CAD Toolset
 
-Add-in cho AutoCAD 2024 x64. Bản nền trong kho: **2.0.1.6**, bản thử.
+Add-in cho AutoCAD 2024 x64. Bản nền trong kho: **2.0.1.6**, bản thử. Nhánh `test/combined-2026-11-17` dựng bản thử **2.0.1.7** (xem HANDOFF.md).
 
 ## Bắt đầu
 

@@ -14,7 +14,7 @@ namespace MedGas2024.UI
         public int CreatedCount{get;private set;}
         public FamilySizesForm(FamilySource original,Func<FamilyRequest,FamilySizePlan> preview,Func<FamilyRequest,FamilySizePlan,int> execute)
         {
-            source=original;padding.Value=(decimal)source.Padding;inspect=preview;create=execute;Text="Thêm cỡ cùng hệ — "+source.Label+" | Mr.T 2.0.1.6";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1060,820);MinimumSize=new Size(960,740);StartPosition=FormStartPosition.CenterParent;
+            source=original;padding.Value=(decimal)source.Padding;inspect=preview;create=execute;Text="Thêm cỡ cùng hệ — "+source.Label+" | Mr.T 2.0.1.7";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1060,820);MinimumSize=new Size(960,740);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(18),ColumnCount=1,RowCount=9};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));foreach(int h in new[]{48,122,74,42,36})root.RowStyles.Add(new RowStyle(SizeType.Absolute,h));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,70));root.RowStyles.Add(new RowStyle(SizeType.Absolute,46));root.RowStyles.Add(new RowStyle(SizeType.Absolute,22));Controls.Add(root);
             root.Controls.Add(new Label{Text="Thêm cỡ cho hệ "+source.Label+" từ đúng ống mẫu vừa chọn.\r\nKế thừa màu thực (kể cả ghi đè), font/style, cao chữ, đoạn nét và hướng chữ; giữ ống cũ.",Dock=DockStyle.Fill},0,0);
             root.Controls.Add(new TextBox{Name="FamilySourceInfo",Text=source.Summary,Multiline=true,ReadOnly=true,Dock=DockStyle.Fill,ScrollBars=ScrollBars.Vertical},0,1);

@@ -46,7 +46,7 @@ public static class PackagingTests
     private static string Hash(byte[] value){using(var h=SHA256.Create())return BitConverter.ToString(h.ComputeHash(value));}
     public static int Main(string[] args)
     {
-        string root=args[0],msi=Path.Combine(root,"installer","MrT_CAD_Toolset_2.0.1.6_AutoCAD2024_x64.msi"),bundle=Path.Combine(root,"dist","MrT.CAD.Toolset.bundle");
+        string root=args[0],msi=Path.Combine(root,"installer","MrT_CAD_Toolset_2.0.1.7_AutoCAD2024_x64.msi"),bundle=Path.Combine(root,"dist","MrT.CAD.Toolset.bundle");
         uint db=0,session=0;uint previous=MsiSetInternalUI(2,IntPtr.Zero);
         try
         {
@@ -54,7 +54,7 @@ public static class PackagingTests
             Require(MsiVerifyPackage(msi),"MsiVerifyPackage");Check(true,"Windows Installer recognizes the generated MSI package");
             Require(MsiOpenDatabase(msi,IntPtr.Zero,out db),"Open MSI database");
             var props=Query(db,"SELECT `Property`,`Value` FROM `Property`",2).ToDictionary(x=>x[0],x=>x[1]);
-            Check(props["ProductName"]=="Mr.T CAD tool set"&&props["ProductVersion"]=="2.0.1.6"&&props["ALLUSERS"]=="1","Product identity and per-machine installation are correct");
+            Check(props["ProductName"]=="Mr.T CAD tool set"&&props["ProductVersion"]=="2.0.1.7"&&props["ALLUSERS"]=="1","Product identity and per-machine installation are correct");
             Check(props["MSIRESTARTMANAGERCONTROL"]=="Disable"&&props["REBOOT"]=="ReallySuppress","Installer does not automatically close AutoCAD or reboot the computer");
             var manifest=XDocument.Load(Path.Combine(bundle,"PackageContents.xml")).Root;
             Check(manifest.Attribute("Name").Value==props["ProductName"]&&manifest.Attribute("ProductCode").Value==props["ProductCode"]&&manifest.Attribute("UpgradeCode").Value==props["UpgradeCode"],"MSI and AutoCAD bundle identities agree");
