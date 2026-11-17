@@ -16,6 +16,12 @@ namespace MedGas2024.Plugin
             var doc=AcApp.DocumentManager.MdiActiveDocument;if(doc==null)return;
             try{IsolationHost.Toggle(doc,PickSpace(doc));}catch(System.Exception ex){Report(doc,ex);}
         }
+        [CommandMethod("MRTISODIAG",CommandFlags.Modal)]
+        public void DiagnoseIsolation()
+        {
+            var doc=AcApp.DocumentManager.MdiActiveDocument;if(doc==null)return;
+            try{string text=IsolationHost.Diagnose(doc,PickSpace(doc));doc.Editor.WriteMessage("\nMr.T CHẨN ĐOÁN ISOLATE:\n"+text+"\n");Win.MessageBox.Show(text.Replace("\n","\r\n"),"Mr.T chẩn đoán Isolate / bối cảnh");}catch(System.Exception ex){Report(doc,ex);}
+        }
         [CommandMethod("MRTISOADD",CommandFlags.Modal|CommandFlags.UsePickSet)]
         public void AddToIsolation()
         {
