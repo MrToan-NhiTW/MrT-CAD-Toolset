@@ -41,7 +41,7 @@ namespace MedGas2024.Plugin
     internal sealed class AliasForm:Form
     {
         readonly string path;readonly TextBox alias=new TextBox();readonly ComboBox command=new ComboBox();readonly Label state=new Label();
-        static readonly string[] Commands={"MRTDENSITY","MRTTABLEMASK","MRTFONT","MRTFONTALL","MRTFONTCHECK","MRTJOIN","MRTJOINTOL","MRTZ0","MRTZ0SCAN","MRTZ0CLEAN","MRTZ0HELP","MRTBREAK","MRTALIASES","MRTTOOLS","MRTPIPE","MRTSCALE","MRTR0","MRTSEL","MRTISO","MRTUNISO","MRTVIEW","MRTISOADD","MRTISODIAG","MRTSELLAYER","MRTALIGNR","MRTBLOCKLAY","MRTBLOCKMERGE","MRTLEGEND","MRTLEGEDIT","MRTLEGSYNC","MRTROOMS","MRTHELP"};
+        static readonly string[] Commands={"MRTDENSITY","MRTTABLEMASK","MRTFONT","MRTFONTALL","MRTFONTCHECK","MRTJOIN","MRTJOINTOL","MRTZ0","MRTZ0PL","MRTZ0SCAN","MRTZ0CLEAN","MRTZ0HELP","MRTBREAK","MRTALIASES","MRTTOOLS","MRTPIPE","MRTSCALE","MRTR0","MRTSEL","MRTISO","MRTUNISO","MRTVIEW","MRTISOADD","MRTISODIAG","MRTSELLAYER","MRTALIGNR","MRTBLOCKLAY","MRTBLOCKMERGE","MRTLEGEND","MRTLEGEDIT","MRTLEGSYNC","MRTROOMS","MRTHELP"};
         public AliasForm(string pgp){path=pgp;Text="Mr.T - Phím lệnh (alias)";Width=620;Height=255;StartPosition=FormStartPosition.CenterScreen;FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;MinimizeBox=false;
             Controls.Add(new Label{Left=15,Top=15,Width=570,Height=35,Text="Gõ alias rồi Enter. Ví dụ: 6 + Enter gọi MRTJOIN. Có thể nhập lệnh AutoCAD khác."});Controls.Add(new Label{Left=16,Top=62,Width=90,Text="Alias:"});alias.SetBounds(105,58,100,26);alias.Text="6";Controls.Add(alias);
             Controls.Add(new Label{Left=220,Top=62,Width=55,Text="Lệnh:"});command.SetBounds(275,58,270,26);command.Items.AddRange(Commands);command.Text="MRTJOIN";Controls.Add(command);

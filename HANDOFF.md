@@ -40,6 +40,15 @@ Ba nhánh tách riêng từ `main`, mỗi nhánh đã chạy `build.ps1` thành 
 - `ui/ribbon-layout`: 6 panel theo thứ tự công việc (Đường ống · Chọn & Cô lập · Hình học & Block · Chữ & Font · Bảng & Phòng · Tiện ích), nút phụ xếp chồng nhỏ. `tests/RibbonPlacement2005.cs` cập nhật và chạy PASS. `tests/RibbonTests.cs` đã lỗi thời từ trước (đếm 10 nút, 2 panel), chưa sửa.
 - Thứ tự hợp nhất gợi ý: isolate → legend → ribbon. Riêng `PackageContents.xml`/`PackagingTests.cs` chỉ đổi ở nhánh isolate.
 - Bản cài thử **2.0.1.7** dựng từ nhánh `test/combined-2026-11-17` (gộp cả ba nhánh; ProductCode mới để nâng cấp đè 2.0.1.6). `packaging/test-package.ps1`: 24 PASS (chỉ kiểm tra gói, chưa cài thật). Setup SHA-256: `3508FE836C2A1B610F0C8496C9D0D4CE70C3B70C8A5039529A33BCAD3DBB8EC6`.
+- Người dùng đã cài 2.0.1.7 và báo ổn; PR #1 mở vào `main`.
+
+## Bản thử 2.0.1.8 — nhánh `feat/density-r-z0` (từ `test/combined-2026-11-17`)
+
+- **Mật độ chữ ống**: thêm icon `mrtdensity` (và `mrtz0pl`) trong `packaging/Assets.cs`. Sau mỗi lần áp dụng, xóa các nét `<stem>_SP_n` cũ cùng họ mà `Database.Purge` xác nhận không còn tham chiếu (trước đây tích tụ mãi).
+- **MRTALIGNR** còn sót đoạn — nguyên nhân tìm thấy trong code: (1) quét "toàn bộ" chỉ lấy Layer tên `Mr.T…`, bỏ qua ống trên Layer khác/gán nét riêng → nay lấy mọi LINE/polyline dùng nét có chữ; (2) polyline có đỉnh trùng (đoạn dài 0) bị bỏ cả tuyến → đoạn 0 nhận hướng đoạn kề; (3) polyline có cung bị bỏ → dùng hướng dây cung; (4) ngưỡng "đứng" 0,25° quá hẹp nên đường lệch 1° đọc dưới→trên cạnh đường đứng đọc trên→dưới → ngưỡng 2° (`NativeDirectionRules.VerticalToleranceDegrees`, dùng chung với `DirectionRules`); (5) LINE hai đầu khác Z / polyline lật pháp tuyến vẫn bỏ qua nhưng lý do chỉ sang MRTZ0PL; tóm tắt gom lý do theo nhóm.
+- **MRTZ0PL** (mới, `FlattenService`): chiếu LINE/LWPOLYLINE/polyline 2D cũ/polyline 3D xuống Z=0 (giữ X,Y), sửa polyline lật pháp tuyến (đổi dấu bulge); tùy chọn đổi LINE → LWPOLYLINE bằng `HandOverTo` (giữ handle, thuộc tính, XData). Polyline 2D/3D thành LWPOLYLINE mới (handle mới). Bỏ qua: trong block, Layer khóa/Xref, LINE đứng theo Z, polyline spline/fit, đối tượng có liên kết. Chưa kiểm thử native.
+- Linetype **U=0**: công cụ đã có tùy chọn tạo "U=0 (thử nghiệm)" trong Quản lý đường nét; API .NET 2024 không đặt được cờ upright nên cần đường LIN/entmod nếu muốn chuyển hàng loạt. Chưa làm lệnh chuyển R→U.
+- Bộ cài 2.0.1.8: ProductCode mới; `test-package.ps1` 24 PASS, gồm xác nhận nhận diện và thay bản 2.0.1.7 đang cài. Setup SHA-256: `5A2959440A74962CBBA9F369961CEFF50A9ED7B01231713C61396B52B2226641`.
 - Chưa làm: gọn các form (Bảng ký hiệu, Quản lý đường nét) theo một khung chung.
 
 ## Phối hợp hai phiên

@@ -26,7 +26,7 @@ public static class RibbonPlacement2005
             if(!titles.SequenceEqual(new[]{"Đường ống","Chọn & Cô lập","Hình học & Block","Chữ & Font","Bảng & Phòng","Tiện ích"}))throw new Exception("Unexpected panel order: "+String.Join(", ",titles));
             var buttons=RibbonFactory.AllButtons(tab).ToList();var ids=buttons.Select(b=>(string)b.CommandParameter).ToList();
             if(ids.Count!=ids.Distinct().Count())throw new Exception("Duplicate ribbon command");
-            var expected=new[]{"MRTTOOLS","MRTPIPE","MRTSCALE","MRTR0","MRTDENSITY","MRTALIGNR","MRTSEL","MRTISO","MRTVIEW","MRTSELLAYER","MRTISOADD","MRTUNISO","MRTJOIN","MRTBREAK","MRTZ0","MRTBLOCKLAY","MRTBLOCKMERGE","MRTFONT","MRTFONTALL","MRTFONTCHECK","MRTLEGEND","MRTLEGEDIT","MRTLEGSYNC","MRTROOMS","MRTALIASES","MRTHELP"};
+            var expected=new[]{"MRTTOOLS","MRTPIPE","MRTSCALE","MRTR0","MRTDENSITY","MRTALIGNR","MRTSEL","MRTISO","MRTVIEW","MRTSELLAYER","MRTISOADD","MRTUNISO","MRTJOIN","MRTBREAK","MRTZ0","MRTZ0PL","MRTBLOCKLAY","MRTBLOCKMERGE","MRTFONT","MRTFONTALL","MRTFONTCHECK","MRTLEGEND","MRTLEGEDIT","MRTLEGSYNC","MRTROOMS","MRTALIASES","MRTHELP"};
             if(!ids.OrderBy(x=>x).SequenceEqual(expected.OrderBy(x=>x)))throw new Exception("Ribbon command set changed: "+String.Join(", ",ids));
             var isolate=new[]{"MRTISO","MRTVIEW","MRTISOADD","MRTUNISO"};var pickPanel=tab.Panels[1];
             if(!isolate.All(id=>RibbonFactory.AllButtons(tab).Any(b=>(string)b.CommandParameter==id&&PanelOf(tab,b)==pickPanel)))throw new Exception("Isolate tools are split across panels");

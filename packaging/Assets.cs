@@ -5,7 +5,7 @@ using System.Drawing.Imaging;
 using System.IO;
 public static class Assets
 {
-    static readonly string[] Keys={"mrttablemask","mrtfont","mrtfontall","mrtfontcheck","mrtjoin","mrtz0","mrtz0scan","mrtbreak","mrtaliases","mrttools","mrtpipe","mrtscale","mrtr0","mrtsel","mrtiso","mrtuniso","mrthelp","mrtsellayer","mrtalignr","mrtview","mrtisoadd","mrtblocklay","mrtblockmerge","mrtlegend","mrtlegedit","mrtlegsync","mrtrooms"};
+    static readonly string[] Keys={"mrttablemask","mrtfont","mrtfontall","mrtfontcheck","mrtjoin","mrtz0","mrtz0scan","mrtbreak","mrtaliases","mrttools","mrtpipe","mrtscale","mrtr0","mrtsel","mrtiso","mrtuniso","mrthelp","mrtsellayer","mrtalignr","mrtview","mrtisoadd","mrtblocklay","mrtblockmerge","mrtlegend","mrtlegedit","mrtlegsync","mrtrooms","mrtdensity","mrtz0pl"};
     static Color Blue(bool light){return ColorTranslator.FromHtml(light?"#0067A4":"#67C5FF");} static Color Green(bool light){return ColorTranslator.FromHtml(light?"#007A4A":"#74DDA5");} static Color Yellow(bool light){return ColorTranslator.FromHtml(light?"#996300":"#FFCC67");} static Color Purple(bool light){return ColorTranslator.FromHtml(light?"#71419B":"#D4A6FF");} static Color Orange(bool light){return ColorTranslator.FromHtml(light?"#A85100":"#FFB77A");}
     static void Line(Graphics g,Color c,float width,params float[] a){using(var p=new Pen(c,width){StartCap=LineCap.Round,EndCap=LineCap.Round,LineJoin=LineJoin.Round})for(int i=0;i+3<a.Length;i+=2)g.DrawLine(p,a[i],a[i+1],a[i+2],a[i+3]);}
     static void Box(Graphics g,Color c,float x,float y,float w,float h,float thickness=1.3f){using(var p=new Pen(c,thickness))g.DrawRectangle(p,x,y,w,h);}
@@ -40,6 +40,12 @@ public static class Assets
         case "mrtblocklay":Line(g,ink,1.4f,4,9,15,3,26,9,26,21,15,28,4,21,4,9,15,15,26,9);Line(g,ink,1.4f,15,15,15,28);Circle(g,purple,23,23,4.5f);Line(g,purple,2,26.4f,26.4f,30,30);break;
         case "mrtblockmerge":Box(g,ink,2,4,9,9);Box(g,ink,2,19,9,9);Arrow(g,purple,13,9,8,7);Arrow(g,purple,13,23,8,-7);Box(g,purple,23,11,7,10,1.8f);break;
         case "mrtlegend":case "mrtlegedit":case "mrtlegsync":Box(g,ink,3,3,22,25);for(int i=0;i<3;i++)Line(g,ink,1.2f,3,10+i*6,25,10+i*6);Line(g,ink,1.2f,11,10,11,28);if(k=="mrtlegend")Plus(g,orange,25,25,light);else if(k=="mrtlegsync"){Line(g,orange,2,13,19,28,19);Line(g,orange,2,24,15,28,19);Line(g,orange,2,24,23,28,19);}else Line(g,orange,3,20,28,29,19);break;
+        // Pipe with repeated label blocks; the yellow dimension shows the label rhythm being tuned.
+        case "mrtdensity":Line(g,ink,2.2f,2,22,6,22);Line(g,ink,2.2f,12,22,20,22);Line(g,ink,2.2f,26,22,30,22);
+            Box(g,blue,6.5f,18.5f,5,7,1.6f);Box(g,blue,20.5f,18.5f,5,7,1.6f);
+            Line(g,yellow,1.4f,9,6,9,13);Line(g,yellow,1.4f,23,6,23,13);Arrow(g,yellow,16,9.5f,6.5f,0);Arrow(g,yellow,16,9.5f,-6.5f,0);break;
+        // Slanted 3D line dropped onto the plane and becoming one polyline.
+        case "mrtz0pl":Line(g,ink,1.3f,3,27,29,27);Line(g,orange,1.8f,4,6,14,13);Arrow(g,orange,9,12,0,9);Line(g,green,2.6f,4,23,15,23,24,17);Circle(g,green,15,23,1.8f,true);break;
         case "mrtrooms":Box(g,ink,4,5,24,22);Line(g,orange,2,9,12,23,12);Line(g,orange,2,9,17,23,17);Line(g,ink,1.5f,9,22,18,22);break;
         }
     }

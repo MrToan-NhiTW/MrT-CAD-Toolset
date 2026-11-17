@@ -12,10 +12,17 @@ namespace MedGas2024.Engine
         public readonly List<NativeDirectionItem> Items=new List<NativeDirectionItem>();
         public readonly List<string> Skipped=new List<string>();
         public int Ignored;
-        public string Summary { get { return "Đã đúng: "+Items.Count(x=>x.Sign>0)+"; cần đảo: "+Items.Count(x=>x.Sign<0)+"; cần tách: "+Items.Count(x=>x.Sign==0)+"; đường bỏ qua: "+Skipped.Count+"; đối tượng không phải đường: "+Ignored+".\r\nTheo WCS: trái → phải; gần thẳng đứng: trên → dưới. Chỉ nhận nét R=0 xác nhận bằng cờ native.\r\nTách thay một polyline bằng nhiều polyline, thay handle và số đối tượng. Polyline bật linetype generation được tách từng đoạn và tắt generation trên các đoạn mới, nên nhịp nét có thể đổi. Giữ nét native và độ rộng, không tạo MText. Đường cong/kín và dữ liệu liên kết chưa hỗ trợ không tự tách.\r\n"+String.Join("\r\n",Skipped.Take(15)); } }
+        public string Summary { get { return "Đã đúng: "+Items.Count(x=>x.Sign>0)+"; cần đảo: "+Items.Count(x=>x.Sign<0)+"; cần tách: "+Items.Count(x=>x.Sign==0)+"; đường bỏ qua: "+Skipped.Count+"; đối tượng không phải đường: "+Ignored+".\r\nTheo WCS: trái → phải; lệch đứng dưới "+NativeDirectionRules.VerticalToleranceDegrees+"°: trên → dưới. Chỉ nhận nét R=0 xác nhận bằng cờ native.\r\nTách thay một polyline bằng nhiều polyline, thay handle và số đối tượng. Polyline bật linetype generation được tách từng đoạn và tắt generation trên các đoạn mới, nên nhịp nét có thể đổi. Giữ nét native và độ rộng, không tạo MText. Đường cong/kín và dữ liệu liên kết chưa hỗ trợ không tự tách.\r\n"+NativeDirectionService.SkipDigest(Skipped); } }
     }
     public static class NativeDirectionService
     {
+        public const string NotFlat="chưa phẳng Z — chạy MRTZ0PL trước: ";
+        // Group skip reasons so a batch over the whole drawing reports causes, not 500 lines.
+        public static string SkipDigest(IEnumerable<string> skipped)
+        {
+            var groups=skipped.Select(s=>{int i=s.IndexOf(": ");return i<0?s:s.Substring(i+2);}).GroupBy(x=>x).OrderByDescending(g=>g.Count()).Select(g=>"• "+g.Count()+" × "+g.Key).ToList();
+            return groups.Count==0?"":"Lý do bỏ qua:\r\n"+String.Join("\r\n",groups.Take(10));
+        }
         // ReverseCurve's width behavior may depend on PLINEREVERSEWIDTHS. Restore
         // segment widths explicitly, so tapered geometry remains in the same place.
         static void ReversePreservingWidth(Curve curve)
@@ -51,18 +58,20 @@ namespace MedGas2024.Engine
             var textStyle=(TextStyleTableRecord)tr.GetObject(type.ShapeStyleAt(textIndex),OpenMode.ForRead);if(textStyle.IsVertical)throw new InvalidOperationException("style chữ dọc chưa hỗ trợ.");
             var state=new StringBuilder().Append(e.LayerId.Handle).Append('|').Append(typeId.Handle).Append('|').Append(LabelService.Definition(type,tr).Fingerprint);
             int sign=0; bool splitEach=false;var signs=new List<int>();var line=e as Line;
-            if(line!=null){var a=line.StartPoint;var b=line.EndPoint;if(Math.Abs(a.Z-b.Z)>1e-8)throw new InvalidOperationException("đường không nằm trên mặt phẳng XY.");sign=NativeDirectionRules.Sign(b.X-a.X,b.Y-a.Y);state.Append('|').Append(a).Append('|').Append(b);}
+            if(line!=null){var a=line.StartPoint;var b=line.EndPoint;if(Math.Abs(a.Z-b.Z)>1e-8)throw new InvalidOperationException(NotFlat+"LINE có hai đầu khác cao độ Z.");sign=NativeDirectionRules.Sign(b.X-a.X,b.Y-a.Y);if(sign==0)throw new InvalidOperationException("đường độ dài bằng 0.");state.Append('|').Append(a).Append('|').Append(b);}
             else
             {
-                var p=(Polyline)e;if(p.Closed||p.NumberOfVertices<2||Math.Abs(p.Normal.X)>1e-9||Math.Abs(p.Normal.Y)>1e-9||p.Normal.Z<0)throw new InvalidOperationException("polyline kín hoặc không nằm trên mặt phẳng XY.");
+                var p=(Polyline)e;if(p.Closed)throw new InvalidOperationException("polyline kín chưa tự đảo.");if(p.NumberOfVertices<2)throw new InvalidOperationException("polyline thiếu đỉnh.");
+                if(Math.Abs(p.Normal.X)>1e-9||Math.Abs(p.Normal.Y)>1e-9||p.Normal.Z<0)throw new InvalidOperationException(NotFlat+"polyline bị lật pháp tuyến (thường do MIRROR/3D).");
                 splitEach=ScaleService.GenerationOn(p)&&p.NumberOfVertices>2;state.Append("|generation=").Append(ScaleService.GenerationOn(p));
+                // Arc segments follow their chord direction; reversing keeps bulges correct.
                 for(int i=0;i<p.NumberOfVertices-1;i++)
                 {
-                    if(Math.Abs(p.GetBulgeAt(i))>1e-12)throw new InvalidOperationException("có đoạn cong.");
                     var a=p.GetPoint3dAt(i);var b=p.GetPoint3dAt(i+1);int part=NativeDirectionRules.Sign(b.X-a.X,b.Y-a.Y);
-                    if(part==0)throw new InvalidOperationException("có đoạn độ dài bằng 0.");
-                    signs.Add(part);if(sign==0)sign=part;state.Append('|').Append(a).Append('|').Append(b).Append('|').Append(p.GetStartWidthAt(i)).Append('|').Append(p.GetEndWidthAt(i));
+                    signs.Add(part);state.Append('|').Append(a).Append('|').Append(b).Append('|').Append(p.GetBulgeAt(i)).Append('|').Append(p.GetStartWidthAt(i)).Append('|').Append(p.GetEndWidthAt(i));
                 }
+                var filled=NativeDirectionRules.FillZeroSigns(signs.ToArray());if(filled.All(x=>x==0))throw new InvalidOperationException("mọi đoạn có độ dài bằng 0.");
+                signs=filled.ToList();sign=signs[0];
                 if(signs.Distinct().Count()>1||splitEach){
                     using(var data=p.XData){if(data!=null){var v=data.AsArray();if(!JoinMetadataPolicy.IsSupported(v.Select(t=>(int)t.TypeCode).ToArray(),v.Select(t=>Convert.ToString(t.Value)).ToArray()))throw new InvalidOperationException("cần tách nhưng có XData chưa hỗ trợ; không tự tách.");state.Append("|xdata=").Append(String.Join(",",v.Select(t=>t.TypeCode+":"+Convert.ToString(t.Value)).ToArray()));}else state.Append("|xdata=none");}
                     if(!p.ExtensionDictionary.IsNull||p.GetPersistentReactorIds().Count>0)throw new InvalidOperationException("cần tách nhưng có dữ liệu mở rộng hoặc liên kết; không tự tách.");sign=0;

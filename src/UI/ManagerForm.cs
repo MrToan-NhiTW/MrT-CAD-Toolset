@@ -36,7 +36,7 @@ namespace MedGas2024.UI
         public ManagerForm(Profile initial,string drawingInfo,Func<Profile,string> inspectAction,Func<Profile,string> applyAction,Action<Profile> sampleAction,Func<Profile,string> fitAction=null,Func<int,int?> colorAction=null)
         {
             inspect=inspectAction;synchronize=applyAction;samples=sampleAction;fit=fitAction;colorPicker=colorAction;
-            Text="Mr.T Thư viện / Tạo mới | Mr.T CAD tool set 2.0.1.7 | AutoCAD 2024";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;StartPosition=FormStartPosition.CenterParent;MinimumSize=new Size(1100,740);Size=new Size(1320,850);BackColor=Color.FromArgb(245,247,250);
+            Text="Mr.T Thư viện / Tạo mới | Mr.T CAD tool set 2.0.1.8 | AutoCAD 2024";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;StartPosition=FormStartPosition.CenterParent;MinimumSize=new Size(1100,740);Size=new Size(1320,850);BackColor=Color.FromArgb(245,247,250);
             tips.InitialDelay=450;tips.ReshowDelay=150;tips.AutoPopDelay=14000;tips.ShowAlways=true;tips.ToolTipTitle="Mr.T — Hướng dẫn";
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),ColumnCount=1,RowCount=8};
             foreach(int h in new[]{44,124,104,30})root.RowStyles.Add(new RowStyle(SizeType.Absolute,h));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));foreach(int h in new[]{80,28,22})root.RowStyles.Add(new RowStyle(SizeType.Absolute,h));Controls.Add(root);
