@@ -22,12 +22,21 @@ public static class RibbonPlacement2005
             var queued=new List<string>();var handler=new RibbonCommandHandler(()=>true,s=>queued.Add(s));
             var create=typeof(RibbonFactory).GetMethod("Create",BindingFlags.Static|BindingFlags.NonPublic);
             var tab=(RibbonTab)create.Invoke(null,new object[]{handler,Path.Combine(root,"dist","MrT.CAD.Toolset.bundle","Contents","Win64","Resources")});
-            var drawing=tab.Panels.Single(p=>p.Source.Title=="Công cụ bản vẽ").Source;
-            var input=tab.Panels.Single(p=>p.Source.Title=="Xử lý đầu vào").Source;
-            var join=drawing.Items.OfType<RibbonButton>().Single(b=>(string)b.CommandParameter=="MRTJOIN");
-            if(input.Items.OfType<RibbonButton>().Any(b=>(string)b.CommandParameter=="MRTJOIN"))throw new Exception("MRTJOIN remains in input panel");
-            if(!new[]{"MRTZ0","MRTZ0SCAN","MRTFONT","MRTFONTALL","MRTFONTCHECK"}.All(id=>input.Items.OfType<RibbonButton>().Any(b=>(string)b.CommandParameter==id)))throw new Exception("Missing input function");
+            var titles=tab.Panels.Select(p=>p.Source.Title).ToArray();
+            if(!titles.SequenceEqual(new[]{"Đường ống","Chọn & Cô lập","Hình học & Block","Chữ & Font","Bảng & Phòng","Tiện ích"}))throw new Exception("Unexpected panel order: "+String.Join(", ",titles));
+            var buttons=RibbonFactory.AllButtons(tab).ToList();var ids=buttons.Select(b=>(string)b.CommandParameter).ToList();
+            if(ids.Count!=ids.Distinct().Count())throw new Exception("Duplicate ribbon command");
+            var expected=new[]{"MRTTOOLS","MRTPIPE","MRTSCALE","MRTR0","MRTDENSITY","MRTALIGNR","MRTSEL","MRTISO","MRTVIEW","MRTSELLAYER","MRTISOADD","MRTUNISO","MRTJOIN","MRTBREAK","MRTZ0","MRTBLOCKLAY","MRTBLOCKMERGE","MRTFONT","MRTFONTALL","MRTFONTCHECK","MRTLEGEND","MRTLEGEDIT","MRTLEGSYNC","MRTROOMS","MRTALIASES","MRTHELP"};
+            if(!ids.OrderBy(x=>x).SequenceEqual(expected.OrderBy(x=>x)))throw new Exception("Ribbon command set changed: "+String.Join(", ",ids));
+            var isolate=new[]{"MRTISO","MRTVIEW","MRTISOADD","MRTUNISO"};var pickPanel=tab.Panels[1];
+            if(!isolate.All(id=>RibbonFactory.AllButtons(tab).Any(b=>(string)b.CommandParameter==id&&PanelOf(tab,b)==pickPanel)))throw new Exception("Isolate tools are split across panels");
+            var join=buttons.Single(b=>(string)b.CommandParameter=="MRTJOIN");
             handler.Execute(join);if(queued.Count!=1||queued[0]!="_MRTJOIN ")throw new Exception("Wrong join command");
-            Console.WriteLine("PASS: JOIN appears only in drawing panel, dispatches MRTJOIN, and Z0/font remain in input panel.");
+            Console.WriteLine("PASS: 6 panels in work order, every command appears once, isolate tools grouped, JOIN dispatches MRTJOIN.");
+    }
+    static RibbonPanel PanelOf(RibbonTab tab,RibbonButton button)
+    {
+        foreach(var panel in tab.Panels)foreach(var item in panel.Source.Items){if(item==button)return panel;var row=item as RibbonRowPanel;if(row!=null&&row.Items.Contains(button))return panel;}
+        return null;
     }
 }
