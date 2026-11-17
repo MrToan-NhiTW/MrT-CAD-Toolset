@@ -31,6 +31,16 @@
 - Quản lý ống: hỗ trợ tên hệ tiếng Việt, tiền tố/hậu tố tùy chọn, tên nét dễ đọc; không tự ép hoặc xóa các định nghĩa cũ khi chưa xác định nguồn. Mật độ tính theo Model mm và tỷ lệ in; kiểm tra bản in/viewport.
 - Bối cảnh công cụ và ví dụ trong `packaging/help.html` có thể chứa nội dung lịch sử. Khi sửa, đối chiếu hành vi và kiểm thử hiện hành thay vì tin toàn bộ hướng dẫn cũ.
 
+## Rà soát và sửa ngày 17/11/2026 (chưa hợp nhất vào main)
+
+Ba nhánh tách riêng từ `main`, mỗi nhánh đã chạy `build.ps1` thành công (test logic/UI). **Chưa kiểm thử native trong AutoCAD**; người dùng tự thử trên bản sao DWG trước khi hợp nhất.
+
+- `fix/isolate-context`: bối cảnh MRTVIEW thiếu nét. Nguyên nhân chính suy ra từ code: khi MRTISO mở phiên mới mà bản vẽ còn đối tượng ẩn từ HIDE/ISOLATE trước (hoặc file mở lại với OBJECTISOLATIONMODE=1, hoặc phiên cũ bị mất), chúng bị ghi là "ẩn trước phiên" và MRTVIEW luôn ẩn lại. Nay MRTISO hỏi [Hien/Giu] (mặc định Hien). Thêm: REGENALL cho mọi viewport; mở khóa Layer tạm trong cùng transaction rồi khóa lại; luôn trả Layer/hiển thị dù bước ẩn lại báo lỗi; không ghi các đối tượng chưa khôi phục được thành "ẩn trước". Lệnh mới `MRTISODIAG` để chẩn đoán.
+- `fix/legend-sync`: bảng không tự cập nhật. Tự đồng bộ sau MRTTOOLS/MRTR0 (sửa nhãn), MRTPIPE (gán), sửa hàng loạt; đồng bộ cả màu và lineweight; theo ống nguồn bằng handle nên đổi tên nhãn không còn bị bỏ qua (cập nhật nhãn dòng và diễn giải nếu diễn giải đúng bằng nhãn cũ); MRTLEGEDIT dựng lại mẫu từ ống nguồn; dọn block `Mr.T_LG_` thừa. Hệ số tỷ lệ/độ rộng mẫu vẫn riêng như trước.
+- `ui/ribbon-layout`: 6 panel theo thứ tự công việc (Đường ống · Chọn & Cô lập · Hình học & Block · Chữ & Font · Bảng & Phòng · Tiện ích), nút phụ xếp chồng nhỏ. `tests/RibbonPlacement2005.cs` cập nhật và chạy PASS. `tests/RibbonTests.cs` đã lỗi thời từ trước (đếm 10 nút, 2 panel), chưa sửa.
+- Thứ tự hợp nhất gợi ý: isolate → legend → ribbon. Riêng `PackageContents.xml`/`PackagingTests.cs` chỉ đổi ở nhánh isolate.
+- Chưa làm: gọn các form (Bảng ký hiệu, Quản lý đường nét) theo một khung chung.
+
 ## Phối hợp hai phiên
 
 - Cả hai bắt đầu từ cùng commit nền, làm trên nhánh khác nhau, ghi rõ phạm vi công việc.
