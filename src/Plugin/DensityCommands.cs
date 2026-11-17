@@ -20,6 +20,19 @@ namespace MedGas2024.Plugin
             foreach(var s in p.Skipped)doc.Editor.WriteMessage("\nMr.T bảng bỏ qua: "+s);
             foreach(var x in p.Changes)doc.Editor.WriteMessage("\nMr.T bảng "+x.Table.Handle+": "+x.Label+" ← "+x.Layer+".");
         }
+        // Pipe linetype/colour edits used to leave legend tables stale until MRTLEGSYNC was run
+        // by hand. Follow-up sync is silent, only touches rows whose source is unambiguous, and
+        // reports skipped rows on the command line.
+        internal static void AutoSyncLegends(Autodesk.AutoCAD.ApplicationServices.Document doc)
+        {
+            try{
+                using(var locked=doc.LockDocument()){
+                    var plan=LegendPipeSync.Inspect(doc.Database,DensityService.Scan(doc.Database));if(plan.Tables==0)return;
+                    if(plan.Changes.Count>0){LegendPipeSync.Apply(doc.Database,plan);doc.Editor.Regen();}
+                    if(plan.Changes.Count>0||plan.Skipped.Count>0)LogLegend(doc,plan);
+                }
+            }catch(System.Exception ex){doc.Editor.WriteMessage("\nMr.T: Chưa tự đồng bộ bảng ký hiệu: "+ex.Message+" Chạy MRTLEGSYNC để xem chi tiết.\n");}
+        }
         [CommandMethod("MRTDENSITY",CommandFlags.Modal)]
         public void Density()
         {

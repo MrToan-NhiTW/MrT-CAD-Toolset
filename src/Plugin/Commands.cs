@@ -65,7 +65,7 @@ namespace MedGas2024.Plugin
                         var plan=BatchService.Inspect(doc.Database,rows,edit);using(var review=new BatchReviewForm(plan.Rows,plan.Summary,plan.CanApply))
                         {
                             if(review.ShowDialog()!=System.Windows.Forms.DialogResult.OK)return false;
-                            int count=BatchService.Apply(doc.Database,plan,edit);doc.Editor.Regen();doc.Editor.WriteMessage("\nMr.T: Đã xử lý "+count+" Layer. Giữ hình học, Scale và Width.\n");return true;
+                            int count=BatchService.Apply(doc.Database,plan,edit);doc.Editor.Regen();AutoSyncLegends(doc);doc.Editor.WriteMessage("\nMr.T: Đã xử lý "+count+" Layer. Giữ hình học, Scale và Width.\n");return true;
                         }
                     }
                 },ChooseColor))
@@ -87,7 +87,7 @@ namespace MedGas2024.Plugin
                 using(var review=new LabelReviewForm(plan.Summary,rows))
                 {
                     if(review.ShowDialog()!=System.Windows.Forms.DialogResult.OK)return false;
-                    int count=LabelService.Apply(doc.Database,plan,edit);doc.Editor.Regen();doc.Editor.WriteMessage("\nMr.T: Đã áp dụng cho "+count+" đường theo cụm nhãn; bỏ qua "+plan.Skipped.Count+".\n");return true;
+                    int count=LabelService.Apply(doc.Database,plan,edit);doc.Editor.Regen();AutoSyncLegends(doc);doc.Editor.WriteMessage("\nMr.T: Đã áp dụng cho "+count+" đường theo cụm nhãn; bỏ qua "+plan.Skipped.Count+".\n");return true;
                 }
             }
         }
@@ -192,6 +192,7 @@ namespace MedGas2024.Plugin
                     assigned=DrawingService.Assign(doc.Database,ids,form.Selected.LayerName,form.ColorByLayer,form.KeepScale,form.EntityScale,expected:form.Selected,globalWidth:form.GlobalWidth);
                     doc.Editor.Regen();doc.Editor.WriteMessage("\nMr.T: "+assigned+"\n");
                 }
+                if(assigned.Changed>0)AutoSyncLegends(doc);
                 if(form.IsolateAfterAssign&&assigned.AssignedIds.Count>0)
                 {
                     try{var pick=PipeSelection.FromSource(doc.Database,assigned.AssignedIds[0],isolationSpace);IsolationHost.AfterAssignment(doc,retainedIsolation,pick.Ids,assigned.AssignedIds,isolationSpace);}
