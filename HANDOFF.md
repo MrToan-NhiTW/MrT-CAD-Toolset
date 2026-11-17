@@ -71,6 +71,15 @@ Ba nhánh tách riêng từ `main`, mỗi nhánh đã chạy `build.ps1` thành 
 - Bộ cài 2.0.1.10: ProductCode `{57A9D13B-F5B9-4693-96F0-666AE36C86E8}`; `test-package.ps1` 24 PASS, nhận diện bản 2.0.1.9 đang cài. Setup SHA-256: `E739D16FF937D080383C0470496E697E272DC4B9CF35F0D75D5B5644862D42D8`.
 - Ghi chú: các lần thử đã ghi `MrT_FontTarget` = Bahnschrift (setenv) trên máy này. Chữ kích thước (trong block *D) không được đổi; nếu cần chuẩn hóa thì phải sửa Dimension Style.
 
+## Bản thử 2.0.1.11 — cùng nhánh `feat/density-r-z0` (18/11/2026)
+
+- **Kiểu chữ** trong MRTFONT/MRTFONTALL (`MrT_FontSafe2006.lsp`): câu hỏi thứ hai `[GiuNguyen/Thuong/Hoa/Proper] <GiuNguyen>`. Chỉ đổi phần chữ nhìn thấy; giữ nguyên mã MTEXT (\P, \H..;, \f..;, {}), %%C/%%D/%%nnn, field %<..>%, \U+XXXX; nội dung xếp chồng \S..; được đổi. Thuong/Proper giữ nguyên từ có chữ số (MA4, CO2, D110); Hoa thì viết hoa hết. Bảng hoa/thường tiếng Việt lấy từ `*A2FLT-UpperMap*` (67 cặp) + strcase cho ASCII.
+- **MRTFONT với block**: nếu tập chọn có INSERT thì hỏi `Sửa cả chữ/ATTDEF bên trong block đã chọn [Co/Khong] <Co>`; Co → quét định nghĩa block (bản *U và EffectiveName của block động), block lồng (mỗi định nghĩa một lần), thuộc tính của block lồng. Bỏ qua Xref/layout.
+- **ATTDEF**: prompt được chuyển mã khi style là ABC hoặc prompt có ký tự chỉ có trong TCVN3; chỉ ghi prompt sau khi ghi chữ/style thành công.
+- **Sửa lỗi thuộc tính nhiều dòng**: AutoCAD 2024 bỏ qua `MTextAttributeContent` trên thuộc tính nhiều dòng có sẵn (khung tên tầng 4 báo 6 lỗi); `A2FLT:CommitText` nay ghi lại bằng `TextString` khi đọc lại không khớp. Bản sao tầng 4 với Proper: 1133 chuyển / 0 lỗi / 0 "?".
+- Bộ cài 2.0.1.11: ProductCode `{15DB0B8D-4BC5-4E71-B911-4680D1160C5D}`; `test-package.ps1` 24 PASS, nhận diện 2.0.1.10 đang cài. Setup SHA-256: `5418DF679472BE0AF99BFFB96CDADCF716F9BFA3B783C55CF1393B0C48198925`.
+- **Sự cố khi kiểm thử**: script COM cũ dùng `GetActiveObject` đã gắn vào AutoCAD người dùng đang mở bản vẽ gốc tầng 4 và chạy thử trên đó (chưa lưu; tệp trên đĩa không đổi, người dùng đóng không lưu). Từ nay chỉ dùng trình điều khiển tự khởi động phiên AutoCAD riêng, xác nhận PID mới và chỉ mở bản vẽ trong thư mục nháp; không bao giờ gắn vào phiên AutoCAD sẵn có.
+
 ## Phối hợp hai phiên
 
 - Cả hai bắt đầu từ cùng commit nền, làm trên nhánh khác nhau, ghi rõ phạm vi công việc.

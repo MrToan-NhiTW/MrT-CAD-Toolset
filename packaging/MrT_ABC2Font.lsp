@@ -873,7 +873,11 @@ Chọn font đích [Bahnschrift/Arial/ArialNarrow/TimesNewRoman] <Bahnschrift>: 
   (if (and (member nm '("AcDbAttribute" "AcDbAttributeDefinition"))
            (vlax-property-available-p obj 'MTextAttribute)
            (= (vla-get-MTextAttribute obj) :vlax-true))
-    (progn (vla-put-MTextAttributeContent obj text) (vla-UpdateMTextAttribute obj))
+    (progn
+      (vla-put-MTextAttributeContent obj text) (vla-UpdateMTextAttribute obj)
+      ;; AutoCAD 2024 ignores MTextAttributeContent on existing multiline attributes
+      ;; (verified on the floor-4 title block); TextString writes the whole MTEXT content.
+      (if (/= (vla-get-MTextAttributeContent obj) text) (vla-put-TextString obj text)))
     (vla-put-TextString obj text))
   ;; Read back both writes; never silently count a style failure as converted.
   (setq written
