@@ -15,6 +15,57 @@
     (setq i (1+ i)))
   found)
 
+(defun A2F2:WideP (s / i n found)
+  ;; True when S holds a character above 255 (or a \U+ escape): never TCVN3.
+  (setq i 1 n (strlen s) found (if (vl-string-search "\\U+" (strcase s)) T nil))
+  (while (and (not found) (<= i n))
+    (if (> (ascii (substr s i 1)) 255) (setq found T))
+    (setq i (1+ i)))
+  found)
+
+;;; Latin-1 letters used by Vietnamese Unicode. Every other TCVN3 code point
+;;; (ß « æ Ö § ...) cannot appear in Vietnamese Unicode text.
+(setq *A2F2-VietLatin1* "ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝàáâãèéêìíòóôõùúý")
+;;; Technical symbols that are also TCVN3 codes count half (Ø15, 2×3, µm, ½).
+(setq *A2F2-TechSymbols* "×Øøµ½·")
+
+(defun A2F2:Tcvn3Score (s / i n ch score)
+  ;; Evidence that S is TCVN3 bytes: TCVN3-only code points score 2, technical
+  ;; symbols 1, Vietnamese Unicode letters and ASCII 0.
+  (setq i 1 n (strlen s) score 0)
+  (while (and (<= i n) (< score 2))
+    (setq ch (substr s i 1))
+    (if (and (assoc ch *A2FLT-Map*) (not (vl-string-search ch *A2F2-VietLatin1*)))
+      (setq score (+ score (if (vl-string-search ch *A2F2-TechSymbols*) 1 2))))
+    (setq i (1+ i)))
+  score)
+
+(defun A2F2:PlainAsciiP (s / i n ok)
+  (setq i 1 n (strlen s) ok T)
+  (while (and ok (<= i n))
+    (if (> (ascii (substr s i 1)) 127) (setq ok nil))
+    (setq i (1+ i)))
+  ok)
+
+(defun A2F2:TrueTypeSigP (sig)
+  ;; sig = "typeface|fontfile|tablefile|bigfont". A typeface name (SetFont) or a
+  ;; .ttf/.otf file means TrueType; Mr.T styles may have only the typeface.
+  (and sig (or (/= (substr sig 1 1) "|")
+               (wcmatch (strcase sig) "*.TTF*,*.OTF*,*.TTC*"))))
+
+(defun A2F2:SymbolFontP (name / u)
+  (setq u (strcase (if name name "")))
+  (wcmatch u "*SYMBOL*,*WINGDING*,*WEBDING*,*GDT*,*SYMAP*,*SYMATH*,*SYASTRO*,*SYMETEO*,*SYMUSIC*,*ESRI*,*MARLETT*"))
+
+(defun A2F2:InlineSymbolP (s / p e found)
+  ;; True when an MTEXT \f override names a symbol font.
+  (setq p 0 found nil)
+  (while (and (not found) (setq p (vl-string-search "\\F" (strcase s) p)))
+    (setq e (vl-string-search ";" s p))
+    (if (and e (A2F2:SymbolFontP (substr s (+ p 3) (- e p 2)))) (setq found T))
+    (setq p (+ p 2)))
+  found)
+
 (defun A2F2:Raw (obj / nm)
   (setq nm (vla-get-ObjectName obj))
   (if (and (member nm '("AcDbAttribute" "AcDbAttributeDefinition"))
@@ -114,8 +165,9 @@
             ii (if mt (A2FLT:InlineABCInfo raw) '(nil nil))
             abc (or (car si) (car ii)))
       (cond
-        ;; Auto: ABC/TCVN3 text is converted; overlapping code points stay for review.
-        ((and abc (A2F2:AmbiguousP raw))
+        ;; Auto: text in an ABC/TCVN3 style is converted. Only a real Unicode letter
+        ;; (code > 255) in that style makes it ambiguous: TCVN3 never produces one.
+        ((and abc (A2F2:WideP raw))
           (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))
           (if (< (length *A2F2-Examples*) 12)
             (setq *A2F2-Examples* (cons (strcat "? " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 0)
@@ -127,25 +179,26 @@
             (setq *A2F2-Examples* (cons (strcat "+ " (vla-get-Handle obj) " | " raw " -> " new) *A2F2-Examples*)))
           1)
         ;; Not ABC but the characters still look like legacy encoding: never just restyle.
-        ((A2FLT:LegacyContentPFast raw)
+        ;; TCVN3 only uses codes <= 255, so a string with a real Unicode letter
+        ;; (ổ, ư, đ ...) is Unicode even when it also has Ò/Ô (e.g. "PHÒNG MỔ").
+        ;; Vietnamese Unicode letters inside Latin-1 (í, é, Ò ...) are not evidence.
+        ((and (>= (A2F2:Tcvn3Score raw) 2) (not (A2F2:WideP raw)))
           (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))
           (if (< (length *A2F2-Examples*) 12)
             (setq *A2F2-Examples* (cons (strcat "? " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 0)
-        ;; Already Unicode: only the Text Style (and, for picked MTEXT, inline \f) changes.
+        ;; Already Unicode: Text Style changes; MTEXT font overrides \f follow the target.
         (T
-          ;; Whole drawing: require identifiable TrueType; skip inline fonts.
-          ;; Explicitly selected objects: normalize font overrides, not text.
-          (if (or (and (not *A2F2-Selected*)
-                       (or abc (not (vl-string-search ".TTF" (strcase (caddr si))))))
-                  (and (not *A2F2-Selected*) mt
-                       (or (vl-string-search "\\F" (strcase raw))
-                           (vl-string-search "%<" raw))))
+          ;; Kept for review: SHX text with non-ASCII characters (encoding unknown),
+          ;; symbol fonts, and MTEXT that overrides into a symbol font.
+          (if (or (A2F2:SymbolFontP (caddr si))
+                  (and (not (A2F2:TrueTypeSigP (caddr si))) (not (A2F2:PlainAsciiP raw)))
+                  (and mt (A2F2:InlineSymbolP raw)))
             (progn
               (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))
               (if (< (length *A2F2-Examples*) 12)
                 (setq *A2F2-Examples* (cons (strcat "? " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 0)
             (progn
-              (setq new (if (and *A2F2-Selected* mt) (A2F2:InlineTarget raw) raw))
+              (setq new (if mt (A2F2:InlineTarget raw) raw))
               (setq *A2F2-Plans* (cons (list obj raw sn new) *A2F2-Plans*))
               (if (< (length *A2F2-Examples*) 12)
                 (setq *A2F2-Examples* (cons (strcat "+ " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 1)))
@@ -170,7 +223,9 @@
       (if selected
         (progn
           (prompt "\nChọn chữ hoặc block: thuộc tính được chọn; định nghĩa block dùng chung chỉ quét ở chế độ toàn bản vẽ. ")
-          (setq ss (or *MRTFONT-Preselection* (ssget '((0 . "TEXT,MTEXT,ATTDEF,ATTRIB,MULTILEADER,INSERT")))))
+          ;; (or a b) returns T, not the selection set: use cond to keep the value.
+          (setq ss (cond (*MRTFONT-Preselection*)
+                         ((ssget '((0 . "TEXT,MTEXT,ATTDEF,ATTRIB,MULTILEADER,INSERT"))))))
           (setq *MRTFONT-Preselection* nil)))
       (if (or (not selected) ss)
         (progn

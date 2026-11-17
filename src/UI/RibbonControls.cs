@@ -61,6 +61,24 @@ namespace MedGas2024.UI
                             graphics.DrawLine(pen,4,10,28,10);graphics.DrawLines(pen,new[]{new Point(24,6),new Point(28,10),new Point(24,14)});graphics.DrawLine(pen,4,24,28,24);graphics.DrawLines(pen,new[]{new Point(8,20),new Point(4,24),new Point(8,28)});break;
                         case "edit":
                             graphics.DrawPolygon(pen,new[]{new Point(6,22),new Point(21,7),new Point(26,12),new Point(11,27),new Point(5,28)});graphics.DrawLine(pen,18,10,23,15);break;
+                        case "layers":
+                            graphics.FillPolygon(fill,new[]{new Point(16,4),new Point(28,10),new Point(16,16),new Point(4,10)});graphics.DrawPolygon(pen,new[]{new Point(16,4),new Point(28,10),new Point(16,16),new Point(4,10)});
+                            graphics.DrawLines(pen,new[]{new Point(4,16),new Point(16,22),new Point(28,16)});graphics.DrawLines(accent,new[]{new Point(4,22),new Point(16,28),new Point(28,22)});break;
+                        case "legend":
+                            graphics.FillRectangle(fill,4,5,24,22);graphics.DrawRectangle(pen,4,5,24,22);graphics.DrawLine(pen,4,12,28,12);graphics.DrawLine(pen,4,19,28,19);graphics.DrawLine(pen,13,5,13,27);
+                            graphics.DrawLine(accent,6,15,11,15);graphics.DrawLine(accent,6,23,11,23);graphics.DrawLine(pen,16,15,25,15);graphics.DrawLine(pen,16,23,23,23);break;
+                        case "density":
+                            graphics.DrawLine(pen,3,20,29,20);graphics.FillRectangle(fill,7,16,7,8);graphics.DrawRectangle(pen,7,16,7,8);graphics.FillRectangle(fill,19,16,7,8);graphics.DrawRectangle(pen,19,16,7,8);
+                            graphics.DrawLine(accent,10,8,23,8);graphics.DrawLines(accent,new[]{new Point(13,5),new Point(10,8),new Point(13,11)});graphics.DrawLines(accent,new[]{new Point(20,5),new Point(23,8),new Point(20,11)});break;
+                        case "room":
+                            graphics.FillRectangle(fill,4,6,24,20);graphics.DrawRectangle(pen,4,6,24,20);graphics.DrawLine(pen,16,6,16,15);graphics.DrawLine(pen,16,21,16,26);
+                            graphics.DrawArc(accent,10,15,12,12,270,90);graphics.DrawLine(accent,7,10,12,10);break;
+                        case "keyboard":
+                            graphics.FillRectangle(fill,3,9,26,15);graphics.DrawRectangle(pen,3,9,26,15);
+                            for(int k=0;k<5;k++){graphics.DrawLine(pen,7+k*4,13,8+k*4,13);graphics.DrawLine(pen,7+k*4,17,8+k*4,17);}graphics.DrawLine(accent,10,21,22,21);break;
+                        case "block":
+                            graphics.FillPolygon(fill,new[]{new Point(16,4),new Point(27,10),new Point(16,16),new Point(5,10)});graphics.DrawPolygon(pen,new[]{new Point(16,4),new Point(27,10),new Point(16,16),new Point(5,10)});
+                            graphics.DrawLines(pen,new[]{new Point(5,10),new Point(5,22),new Point(16,28),new Point(27,22),new Point(27,10)});graphics.DrawLine(accent,16,16,16,28);break;
                         case "delete":
                             graphics.DrawLine(pen,6,9,26,9);graphics.DrawLines(pen,new[]{new Point(12,9),new Point(12,5),new Point(20,5),new Point(20,9)});graphics.DrawPolygon(pen,new[]{new Point(9,9),new Point(23,9),new Point(21,28),new Point(11,28)});graphics.DrawLine(pen,14,14,14,23);graphics.DrawLine(pen,18,14,18,23);break;
                     }
@@ -104,7 +122,7 @@ namespace MedGas2024.UI
             Name=name;AccessibleName=title;AccessibleRole=AccessibleRole.Grouping;Dock=DockStyle.Fill;BackColor=Color.White;Margin=new Padding(0,0,8,0);Padding=new Padding(5,5,5,0);
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,25));Controls.Add(root);
             content.Dock=DockStyle.Fill;content.RowCount=1;content.RowStyles.Add(new RowStyle(SizeType.Percent,100));content.Margin=Padding.Empty;root.Controls.Add(content,0,0);
-            caption.Name=name+"Caption";caption.Text=title;caption.Dock=DockStyle.Fill;caption.Margin=Padding.Empty;caption.TextAlign=ContentAlignment.MiddleCenter;caption.BackColor=Color.FromArgb(240,240,240);caption.ForeColor=Color.FromArgb(90,90,90);caption.Font=UiStyle.Emphasis(10F);root.Controls.Add(caption,0,1);
+            caption.Name=name+"Caption";caption.Text=title;caption.Dock=DockStyle.Fill;caption.Margin=Padding.Empty;caption.TextAlign=ContentAlignment.MiddleCenter;caption.BackColor=UiTheme.AccentSoft;caption.ForeColor=UiTheme.AccentDark;caption.Font=UiStyle.Emphasis(10F);root.Controls.Add(caption,0,1);
         }
         public void AddCommands(params Button[] buttons){foreach(var b in buttons)AddCommand(b);}
         public void AddCommand(Button button,float weight=100)
@@ -113,6 +131,11 @@ namespace MedGas2024.UI
             var host=new Panel{Name=button.Name+"Host",Dock=DockStyle.Fill,Margin=new Padding(2,0,2,4)};
             button.Dock=DockStyle.Fill;button.Margin=Padding.Empty;host.Controls.Add(button);content.Controls.Add(host,index,0);
         }
-        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);using(var pen=new Pen(UiTheme.Line))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);}
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            using(var pen=new Pen(UiTheme.Line))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);
+            using(var bar=new SolidBrush(UiTheme.Accent))e.Graphics.FillRectangle(bar,0,0,Width,2);   // Autodesk-blue group cap
+        }
     }
 }

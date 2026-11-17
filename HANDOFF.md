@@ -58,6 +58,19 @@ Ba nhánh tách riêng từ `main`, mỗi nhánh đã chạy `build.ps1` thành 
 - Bộ cài 2.0.1.9: ProductCode mới; `test-package.ps1` 24 PASS, xác nhận nhận diện bản 2.0.1.8 đang cài. Setup SHA-256: `3BF591FDA192EE153E1675CE75BE38D646DD5967B701A42714B4728DEF21FE05`.
 - Chưa làm: gọn các form (Bảng ký hiệu, Quản lý đường nét) theo một khung chung.
 
+## Bản thử 2.0.1.10 — cùng nhánh `feat/density-r-z0` (18/11/2026)
+
+- **Sửa lỗi MRTFONT `bad argument type: lselsetp T`** (người dùng báo trên 2.0.1.9): `(setq ss (or *MRTFONT-Preselection* (ssget ...)))` trả về `T` thay vì bộ chọn. Đổi sang `cond` ở cả `MrT_FontSafe2006.lsp` và `MrT_ABC2Font.lsp`. Tái hiện và xác nhận đã sửa trong AutoCAD 2024 thật (điều khiển qua COM, nạp LSP từ thư mục cài Program Files nên không đổi SECURELOAD).
+- **Nhận diện bảng mã chặt hơn**, kiểm trên bản sao mặt bằng khí y tế tầng 4: trước 692 chuyển / 441 "?", sau 1133 chuyển / 0 "?" / 0 lỗi:
+  - Style ABC (.VnAvantH...) được tin; chỉ "?" khi chuỗi có ký tự > 255 (TCVN3 không sinh được).
+  - Style Unicode: chỉ coi là TCVN3 khi có mã TCVN3 không thuộc chữ Việt Latin-1 (ß « æ Ö §...; Ø × µ ½ tính nửa). "Khí Nén", "PHÒNG 602", "PHÒNG MỔ" không còn bị giữ lại.
+  - Style SHX: chữ thuần ASCII được đổi style; SHX có ký tự ngoài ASCII và font ký hiệu (symbol, gdt, wingding, sym*...) vẫn "?".
+  - Style Mr.T chỉ có typeface (không có tệp font) được nhận là TrueType.
+  - MTEXT có `\fArial...` (Unicode) đổi theo font đích cả khi chạy toàn bản vẽ; \f vào font ký hiệu thì giữ.
+- **Giao diện** (`UiHeader.cs` mới, `UiTheme.cs`): dải tiêu đề tối trên mọi hộp thoại (badge icon xanh theo loại công cụ, nhãn MR.T CAD TOOLSET, tiêu đề lớn, phụ đề/phiên bản bên phải, vạch xanh Autodesk); tiêu đề lớn trong form được chuyển lên dải (hàng cũ thu về 0), control đặt tuyệt đối được dời xuống. Windows 11: viền cửa sổ xanh Autodesk, thanh tiêu đề cùng màu dải. Nhóm ribbon trong form có vạch xanh trên, chú thích nền xanh nhạt. Thêm icon: layers, legend, density, room, keyboard, block. Tab vẫn để hệ thống vẽ (owner-draw làm hỏng test cỡ tối thiểu).
+- Bộ cài 2.0.1.10: ProductCode `{57A9D13B-F5B9-4693-96F0-666AE36C86E8}`; `test-package.ps1` 24 PASS, nhận diện bản 2.0.1.9 đang cài. Setup SHA-256: `E739D16FF937D080383C0470496E697E272DC4B9CF35F0D75D5B5644862D42D8`.
+- Ghi chú: các lần thử đã ghi `MrT_FontTarget` = Bahnschrift (setenv) trên máy này. Chữ kích thước (trong block *D) không được đổi; nếu cần chuẩn hóa thì phải sửa Dimension Style.
+
 ## Phối hợp hai phiên
 
 - Cả hai bắt đầu từ cùng commit nền, làm trên nhánh khác nhau, ghi rõ phạm vi công việc.

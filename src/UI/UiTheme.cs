@@ -25,11 +25,110 @@ namespace MedGas2024.UI
 
         static readonly string[] PrimaryWords={"áp dụng","chèn","tạo vào","tạo hệ","lưu","đồng ý","ok","gán","xác nhận","thực hiện","chuyển"};
 
+        public static readonly Color Banner=Color.FromArgb(32,39,49);         // dark header / Win11 caption
+        public static readonly Color BannerSub=Color.FromArgb(163,178,194);
+        public static readonly Color BannerTag=Color.FromArgb(96,186,236);
+
         public static void Attach(Form form)
         {
             if(form==null)return;
-            form.Load+=delegate{Apply(form);};
+            form.HandleCreated+=delegate{Chrome(form);};
+            if(form.IsHandleCreated)Chrome(form);
+            form.Load+=delegate{AddHeader(form);Apply(form);};
             form.ControlAdded+=delegate(object s,ControlEventArgs e){if(form.IsHandleCreated)Apply(e.Control);};
+        }
+
+        // ---------- Windows 11 frame: Autodesk-blue border, caption matching the header ----------
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")]
+        static extern int DwmSetWindowAttribute(IntPtr hwnd,int attribute,ref int value,int size);
+        static int ColorRef(Color c){return c.R|(c.G<<8)|(c.B<<16);}
+        static void Chrome(Form form)
+        {
+            try
+            {
+                int border=ColorRef(Accent),caption=ColorRef(Banner),text=ColorRef(Color.White);
+                DwmSetWindowAttribute(form.Handle,34,ref border,4);   // DWMWA_BORDER_COLOR (Win11)
+                DwmSetWindowAttribute(form.Handle,35,ref caption,4);  // DWMWA_CAPTION_COLOR
+                DwmSetWindowAttribute(form.Handle,36,ref text,4);     // DWMWA_TEXT_COLOR
+            }
+            catch(Exception){}                                         // Windows 10: keep system frame
+            try{if(form.ShowIcon)form.Icon=UiHeader.WindowIcon(IconFor(form));}catch(Exception){}
+        }
+
+        public static string IconFor(Form form)
+        {
+            switch(form.GetType().Name)
+            {
+                case "DrawingManagerForm":case "LabelManagerForm":case "LegacyMapForm":case "LayerMultiDialog":return "layers";
+                case "ManagerForm":case "NewSystemForm":case "RowEditorForm":case "FamilySizesForm":return "new";
+                case "LegendForm":return "legend";
+                case "DensityForm":return "density";
+                case "DirectionForm":case "RNameReviewForm":return "direction";
+                case "PipePickerForm":case "PickModeForm":return "pick";
+                case "ScaleForm":return "fit";
+                case "ColorGroupForm":return "color";
+                case "RoomForm":case "RoomReviewForm":return "room";
+                case "AliasForm":return "keyboard";
+                case "BlockTargetDialog":return "block";
+                case "BatchReviewForm":case "LabelReviewForm":return "inspect";
+                default:return "edit";
+            }
+        }
+
+        // ---------- Header band ----------
+        // Added once per form at Load. In-layout big titles move into the band (their row is
+        // collapsed), so the form grows only by what the band adds. Loose (absolutely
+        // positioned) controls are shifted below the band.
+        static void AddHeader(Form form)
+        {
+            if(form.Controls.ContainsKey("MrTHeader"))return;
+            var header=new UiHeader(form){Name="MrTHeader",Dock=DockStyle.Top};
+            int h=header.Height,reclaimed=0;
+            var title=FindTitle(form);
+            if(title!=null){reclaimed=Collapse(title);header.TitleSource=title;}
+            int grow=Math.Max(0,h-reclaimed);
+            form.SuspendLayout();
+            try
+            {
+                foreach(Control c in form.Controls)
+                {
+                    if(c.Dock!=DockStyle.None)continue;
+                    bool top=(c.Anchor&AnchorStyles.Top)!=0,bottom=(c.Anchor&AnchorStyles.Bottom)!=0;
+                    if(top&&bottom)c.SetBounds(c.Left,c.Top+grow,c.Width,Math.Max(10,c.Height-grow));
+                    else if(top||!bottom)c.Top+=grow;
+                }
+                if(grow>0)
+                {
+                    if(form.MinimumSize.Height>0)form.MinimumSize=new Size(form.MinimumSize.Width,form.MinimumSize.Height+grow);
+                    if(form.MaximumSize.Height>0)form.MaximumSize=new Size(form.MaximumSize.Width,form.MaximumSize.Height+grow);
+                    form.ClientSize=new Size(form.ClientSize.Width,form.ClientSize.Height+grow);
+                    if(form.StartPosition==FormStartPosition.CenterScreen||form.StartPosition==FormStartPosition.CenterParent)form.Top=Math.Max(0,form.Top-grow/2);
+                }
+                form.Controls.Add(header);header.SendToBack();      // docks first: always the top band
+            }
+            finally{form.ResumeLayout(true);}
+        }
+        static Label FindTitle(Control root)
+        {
+            foreach(Control c in root.Controls)
+            {
+                var l=c as Label;
+                if(l!=null&&l.Font!=null&&l.Font.SizeInPoints>=17F&&l.Parent is TableLayoutPanel)return l;
+                if(c is DataGridView||c is UiHeader)continue;
+                var inner=FindTitle(c);if(inner!=null)return inner;
+            }
+            return null;
+        }
+        static int Collapse(Label title)
+        {
+            var table=(TableLayoutPanel)title.Parent;int row=table.GetRow(title);
+            foreach(Control c in table.Controls)if(c!=title&&table.GetRow(c)==row)return 0;   // shared row: keep
+            if(row<0||row>=table.RowStyles.Count)return 0;
+            var style=table.RowStyles[row];int reclaimed;
+            if(style.SizeType==SizeType.Absolute){reclaimed=(int)style.Height;style.Height=0;}
+            else if(style.SizeType==SizeType.AutoSize)reclaimed=title.Height+title.Margin.Vertical;
+            else return 0;
+            title.Visible=false;return reclaimed;
         }
         public static void Apply(Control root)
         {
@@ -59,7 +158,7 @@ namespace MedGas2024.UI
         }
         static void Style(Control c)
         {
-            if(c is RibbonButton||c is RibbonGroup)return;              // own paint, already themed
+            if(c is RibbonButton||c is RibbonGroup||c is UiHeader)return;   // own paint, already themed
             var form=c as Form;
             if(form!=null){form.BackColor=Canvas;form.ForeColor=Ink;form.Font=Resize(form.Font,BodySize);return;}
             if(c.Font!=null&&c.Parent!=null&&!ReferenceEquals(c.Font,c.Parent.Font))c.Font=Resize(c.Font,BodySize-.5F);
@@ -80,7 +179,7 @@ namespace MedGas2024.UI
             var combo=c as ComboBox;if(combo!=null){combo.FlatStyle=FlatStyle.Flat;combo.BackColor=Surface;combo.ForeColor=Ink;return;}
             var check=c as CheckBox;if(check!=null){check.ForeColor=Ink;if(check.BackColor==SystemColors.Control)check.BackColor=Color.Transparent;return;}
             var radio=c as RadioButton;if(radio!=null){radio.ForeColor=Ink;if(radio.BackColor==SystemColors.Control)radio.BackColor=Color.Transparent;return;}
-            var group=c as GroupBox;if(group!=null){group.ForeColor=Ink;group.BackColor=Color.Transparent;return;}
+            var group=c as GroupBox;if(group!=null){group.ForeColor=AccentDark;group.BackColor=Color.Transparent;return;}
             var list=c as ListBox;if(list!=null){list.BorderStyle=BorderStyle.FixedSingle;list.BackColor=Surface;list.ForeColor=Ink;return;}
             var tabs=c as TabPage;if(tabs!=null){tabs.BackColor=Canvas;tabs.ForeColor=Ink;return;}
             if((c is Panel||c is TableLayoutPanel||c is FlowLayoutPanel||c is UserControl||c is SplitContainer)&&c.BackColor==SystemColors.Control)c.BackColor=Color.Transparent;
@@ -105,6 +204,8 @@ namespace MedGas2024.UI
             else if(primary){b.BackColor=Accent;b.FlatAppearance.BorderColor=Accent;}
             else{b.BackColor=Surface;b.FlatAppearance.BorderColor=Color.FromArgb(160,160,160);}
         }
+        // TabControl stays system-drawn: owner-drawn tabs change its preferred width and
+        // break the minimum-size layout tests.
         public static void Grid(DataGridView grid)
         {
             grid.BackgroundColor=Surface;grid.BorderStyle=BorderStyle.FixedSingle;grid.GridColor=Line;

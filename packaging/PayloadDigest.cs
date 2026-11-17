@@ -1,1 +1,1 @@
-namespace MrT.CAD.Toolset.Setup { internal static class Payload { internal const string Sha256="68C7B54EBC6FF32D3D223DC5D9CC10D138F8FBCFE8BCF3DB9BE28FD91A5BD854"; } }
+namespace MrT.CAD.Toolset.Setup { internal static class Payload { internal const string Sha256="A24A76698E4B463393BC2BBD8B7AF99CBB1E6BC535D59835E6BBDC329BE70BE0"; } }
