@@ -1,4 +1,18 @@
-# Bàn giao phát triển — 2.0.1.6
+# Bàn giao phát triển — mới nhất 2.0.1.11 (nhánh `feat/density-r-z0`)
+
+## Quy trình: chạy offline trên máy trước, đẩy GitHub sau
+
+- Dự án có **bản làm việc offline** trên máy tính của người dùng (`C:\Projects\MrT-CAD-Toolset`). Mọi thay đổi được build, đóng gói bộ cài EXE và chạy thử ngay trên máy đó trước: `build.ps1`, `packaging/test-package.ps1` (24 PASS), thử trong AutoCAD 2024 trên **bản sao** DWG, rồi người dùng tự cài bộ cài thử và kiểm tra.
+- **Chỉ khi người dùng xác nhận ổn mới commit/đẩy lên GitHub.** Vì vậy GitHub có thể chậm hơn bản offline: có thể có commit chưa đẩy, hoặc bộ cài thử mới chưa có trên GitHub.
+- Bộ cài thử (`installer/MrT_CAD_Toolset_<phiên bản>_Setup.exe`) **không nằm trong git**; chỉ có ở máy đã build. Máy khác muốn có thì build lại từ mã nguồn (kiểm SHA-256 ghi ở mục phiên bản tương ứng nếu cùng mã) hoặc người dùng chép tay.
+- Tại thời điểm bàn giao (18/11/2026) bản offline và GitHub trùng nhau ở commit `34894cd` (2.0.1.11), PR #2 vào `test/combined-2026-11-17`, PR #1 vào `main`; cả hai chưa gộp. `main` vẫn là bản cũ — tiếp tục từ `feat/density-r-z0`.
+- **Khi tiếp tục ở máy khác (Codex hoặc phiên khác):**
+  - Trước khi bắt đầu, hỏi người dùng bản offline có thay đổi nào chưa đẩy không; không mặc định GitHub là mới nhất.
+  - Làm theo cùng quy trình trên máy đó: tạo nhánh riêng, build và kiểm thử offline, tạo bộ cài thử, chờ người dùng thử và đồng ý rồi mới đẩy. Không tự đẩy hay gộp khi chưa được đồng ý.
+  - Mỗi bộ cài thử cần phiên bản và ProductCode mới (đổi trong `build-msi.ps1`, `PackageContents.xml`, thêm mã cũ vào `tests/PackagingTests.cs`). Hai máy làm song song phải thống nhất số phiên bản kế tiếp (2.0.1.12…) để không trùng.
+  - Ghi kết quả (phiên bản, ProductCode, SHA-256, đã kiểm gì, chưa kiểm gì) vào file này trước khi đẩy.
+  - Không gắn vào AutoCAD người dùng đang mở; chỉ tự khởi động phiên riêng và mở bản sao trong thư mục nháp. Không đổi SECURELOAD. Không đưa DWG thật lên GitHub.
+- Việc đang chờ: giao diện bộ cài Setup.exe (`packaging/SetupProgress.cs`, `Setup.cs`, `build-setup.ps1`) cần thanh/khung tiến trình và cùng thiết kế dải tiêu đề tối như các hộp thoại 2.0.1.10 (người dùng rất hài lòng với thiết kế đó). Bộ cài phải giữ offline, tự chứa.
 
 ## Điểm xuất phát
 
