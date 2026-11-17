@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.1.7" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{3102CC70-D2F0-4F04-A660-AB1DAA93A216}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
+<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.1.11" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{15DB0B8D-4BC5-4E71-B911-4680D1160C5D}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
   <CompanyDetails Name="Mr.Toan-NhiTW" />
   <Components Description="AutoCAD 2024 x64 - .NET Framework 4.8">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.3" SeriesMax="R24.3" />
-    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.1.7" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
+    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.1.11" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
       <AssemblyMappings><AssemblyMappingFolder Path="./Contents/Win64" /></AssemblyMappings>
       <Commands GroupName="MRT_CAD_TOOLSET">
         <Command Global="MRTUNIFYR" Local="MRTUNIFYR" /><Command Global="MRTDENSITY" Local="MRTDENSITY" /><Command Global="MRTTABLEMASK" Local="MRTTABLEMASK" /><Command Global="MRTJOIN" Local="MRTJOIN" /><Command Global="MRTJOINTOL" Local="MRTJOINTOL" /><Command Global="MRTBREAK" Local="MRTBREAK" /><Command Global="MRTALIASES" Local="MRTALIASES" />
         <Command Global="MRTVIEW" Local="MRTVIEW" />
-        <Command Global="MRTISOADD" Local="MRTISOADD" /><Command Global="MRTISODIAG" Local="MRTISODIAG" /><Command Global="MRTBLOCKLAY" Local="MRTBLOCKLAY" /><Command Global="MRTBLOCKMERGE" Local="MRTBLOCKMERGE" /><Command Global="MRTSELLAYER" Local="MRTSELLAYER" /><Command Global="MRTALIGNR" Local="MRTALIGNR" /><Command Global="MRTSEL" Local="MRTSEL" /><Command Global="MRTPICKSYSTEM" Local="MRTPICKSYSTEM" /><Command Global="MRTGROUP" Local="MRTGROUP" /><Command Global="MRTR0" Local="MRTR0" /><Command Global="MRTTOOLS" Local="MRTTOOLS" />
+        <Command Global="MRTISOADD" Local="MRTISOADD" /><Command Global="MRTISODIAG" Local="MRTISODIAG" /><Command Global="MRTZ0PL" Local="MRTZ0PL" /><Command Global="MRTBLOCKLAY" Local="MRTBLOCKLAY" /><Command Global="MRTBLOCKMERGE" Local="MRTBLOCKMERGE" /><Command Global="MRTSELLAYER" Local="MRTSELLAYER" /><Command Global="MRTALIGNR" Local="MRTALIGNR" /><Command Global="MRTSEL" Local="MRTSEL" /><Command Global="MRTPICKSYSTEM" Local="MRTPICKSYSTEM" /><Command Global="MRTGROUP" Local="MRTGROUP" /><Command Global="MRTR0" Local="MRTR0" /><Command Global="MRTTOOLS" Local="MRTTOOLS" />
         <Command Global="MRTLTYPE" Local="MRTLTYPE" />
         <Command Global="KHIYTE" Local="KHIYTE" />
         <Command Global="MRTPIPE" Local="MRTPIPE" /><Command Global="MRTFIXTEXT" Local="MRTFIXTEXT" /><Command Global="MRTSCALE" Local="MRTSCALE" /><Command Global="MRTHELP" Local="MRTHELP" /><Command Global="MRTRIBBON" Local="MRTRIBBON" />

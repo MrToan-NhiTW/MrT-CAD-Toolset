@@ -1,4 +1,18 @@
-# Bàn giao phát triển — 2.0.1.6
+# Bàn giao phát triển — mới nhất 2.0.1.11 (nhánh `feat/density-r-z0`)
+
+## Quy trình: chạy offline trên máy trước, đẩy GitHub sau
+
+- Dự án có **bản làm việc offline** trên máy tính của người dùng (`C:\Projects\MrT-CAD-Toolset`). Mọi thay đổi được build, đóng gói bộ cài EXE và chạy thử ngay trên máy đó trước: `build.ps1`, `packaging/test-package.ps1` (24 PASS), thử trong AutoCAD 2024 trên **bản sao** DWG, rồi người dùng tự cài bộ cài thử và kiểm tra.
+- **Chỉ khi người dùng xác nhận ổn mới commit/đẩy lên GitHub.** Vì vậy GitHub có thể chậm hơn bản offline: có thể có commit chưa đẩy, hoặc bộ cài thử mới chưa có trên GitHub.
+- Bộ cài thử (`installer/MrT_CAD_Toolset_<phiên bản>_Setup.exe`) **không nằm trong git**; chỉ có ở máy đã build. Máy khác muốn có thì build lại từ mã nguồn (kiểm SHA-256 ghi ở mục phiên bản tương ứng nếu cùng mã) hoặc người dùng chép tay.
+- Tại thời điểm bàn giao (18/11/2026) bản offline và GitHub trùng nhau ở commit `34894cd` (2.0.1.11), PR #2 vào `test/combined-2026-11-17`, PR #1 vào `main`; cả hai chưa gộp. `main` vẫn là bản cũ — tiếp tục từ `feat/density-r-z0`.
+- **Khi tiếp tục ở máy khác (Codex hoặc phiên khác):**
+  - Trước khi bắt đầu, hỏi người dùng bản offline có thay đổi nào chưa đẩy không; không mặc định GitHub là mới nhất.
+  - Làm theo cùng quy trình trên máy đó: tạo nhánh riêng, build và kiểm thử offline, tạo bộ cài thử, chờ người dùng thử và đồng ý rồi mới đẩy. Không tự đẩy hay gộp khi chưa được đồng ý.
+  - Mỗi bộ cài thử cần phiên bản và ProductCode mới (đổi trong `build-msi.ps1`, `PackageContents.xml`, thêm mã cũ vào `tests/PackagingTests.cs`). Hai máy làm song song phải thống nhất số phiên bản kế tiếp (2.0.1.12…) để không trùng.
+  - Ghi kết quả (phiên bản, ProductCode, SHA-256, đã kiểm gì, chưa kiểm gì) vào file này trước khi đẩy.
+  - Không gắn vào AutoCAD người dùng đang mở; chỉ tự khởi động phiên riêng và mở bản sao trong thư mục nháp. Không đổi SECURELOAD. Không đưa DWG thật lên GitHub.
+- Việc đang chờ: giao diện bộ cài Setup.exe (`packaging/SetupProgress.cs`, `Setup.cs`, `build-setup.ps1`) cần thanh/khung tiến trình và cùng thiết kế dải tiêu đề tối như các hộp thoại 2.0.1.10 (người dùng rất hài lòng với thiết kế đó). Bộ cài phải giữ offline, tự chứa.
 
 ## Điểm xuất phát
 
@@ -40,7 +54,45 @@ Ba nhánh tách riêng từ `main`, mỗi nhánh đã chạy `build.ps1` thành 
 - `ui/ribbon-layout`: 6 panel theo thứ tự công việc (Đường ống · Chọn & Cô lập · Hình học & Block · Chữ & Font · Bảng & Phòng · Tiện ích), nút phụ xếp chồng nhỏ. `tests/RibbonPlacement2005.cs` cập nhật và chạy PASS. `tests/RibbonTests.cs` đã lỗi thời từ trước (đếm 10 nút, 2 panel), chưa sửa.
 - Thứ tự hợp nhất gợi ý: isolate → legend → ribbon. Riêng `PackageContents.xml`/`PackagingTests.cs` chỉ đổi ở nhánh isolate.
 - Bản cài thử **2.0.1.7** dựng từ nhánh `test/combined-2026-11-17` (gộp cả ba nhánh; ProductCode mới để nâng cấp đè 2.0.1.6). `packaging/test-package.ps1`: 24 PASS (chỉ kiểm tra gói, chưa cài thật). Setup SHA-256: `3508FE836C2A1B610F0C8496C9D0D4CE70C3B70C8A5039529A33BCAD3DBB8EC6`.
+- Người dùng đã cài 2.0.1.7 và báo ổn; PR #1 mở vào `main`.
+
+## Bản thử 2.0.1.8 — nhánh `feat/density-r-z0` (từ `test/combined-2026-11-17`)
+
+- **Mật độ chữ ống**: thêm icon `mrtdensity` (và `mrtz0pl`) trong `packaging/Assets.cs`. Sau mỗi lần áp dụng, xóa các nét `<stem>_SP_n` cũ cùng họ mà `Database.Purge` xác nhận không còn tham chiếu (trước đây tích tụ mãi).
+- **MRTALIGNR** còn sót đoạn — nguyên nhân tìm thấy trong code: (1) quét "toàn bộ" chỉ lấy Layer tên `Mr.T…`, bỏ qua ống trên Layer khác/gán nét riêng → nay lấy mọi LINE/polyline dùng nét có chữ; (2) polyline có đỉnh trùng (đoạn dài 0) bị bỏ cả tuyến → đoạn 0 nhận hướng đoạn kề; (3) polyline có cung bị bỏ → dùng hướng dây cung; (4) ngưỡng "đứng" 0,25° quá hẹp nên đường lệch 1° đọc dưới→trên cạnh đường đứng đọc trên→dưới → ngưỡng 2° (`NativeDirectionRules.VerticalToleranceDegrees`, dùng chung với `DirectionRules`); (5) LINE hai đầu khác Z / polyline lật pháp tuyến vẫn bỏ qua nhưng lý do chỉ sang MRTZ0PL; tóm tắt gom lý do theo nhóm.
+- **MRTZ0PL** (mới, `FlattenService`): chiếu LINE/LWPOLYLINE/polyline 2D cũ/polyline 3D xuống Z=0 (giữ X,Y), sửa polyline lật pháp tuyến (đổi dấu bulge); tùy chọn đổi LINE → LWPOLYLINE bằng `HandOverTo` (giữ handle, thuộc tính, XData). Polyline 2D/3D thành LWPOLYLINE mới (handle mới). Bỏ qua: trong block, Layer khóa/Xref, LINE đứng theo Z, polyline spline/fit, đối tượng có liên kết. Chưa kiểm thử native.
+- Linetype **U=0**: công cụ đã có tùy chọn tạo "U=0 (thử nghiệm)" trong Quản lý đường nét; API .NET 2024 không đặt được cờ upright nên cần đường LIN/entmod nếu muốn chuyển hàng loạt. Chưa làm lệnh chuyển R→U.
+- Bộ cài 2.0.1.8: ProductCode mới; `test-package.ps1` 24 PASS, gồm xác nhận nhận diện và thay bản 2.0.1.7 đang cài. Setup SHA-256: `5A2959440A74962CBBA9F369961CEFF50A9ED7B01231713C61396B52B2226641`.
+- Người dùng đã cài 2.0.1.8 (bản có MRTZ0PL) trước đợt giao diện dưới đây.
+
+## Bản thử 2.0.1.9 — cùng nhánh `feat/density-r-z0`
+
+- **Giao diện kiểu Autodesk** (`src/UI/UiTheme.cs`): nền xám trung tính, nút chính xanh Autodesk #0696D7, nút phụ viền xám, bảng kẻ ngang, tiêu đề cột xám nhạt, dòng chọn xanh nhạt, chữ Segoe UI 11 pt (trước 10,5). `UiTheme.Attach(this)` ở đầu constructor của cả 25 Form (UI + Plugin); chỉ đổi màu/viền/font, không đổi kích thước nút để giữ các test "fits at minimum size". Đã nới: hàng tìm kiếm/ghi chú của Quản lý đường nét, cỡ tối thiểu Bảng ký hiệu 1240×800, cột "Loại". Ribbon trong form đổi sang bảng màu trung tính.
+- **Đổi font (MRTFONT/MRTFONTALL)** trong `MrT_FontSafe2006.lsp`: chỉ còn hỏi font đích (nhớ lựa chọn lần trước qua `setenv MrT_FontTarget`, thêm ArialNarrow); Text Style luôn là `Mr.T_<FONT>` chuẩn (cao 0, rộng 1, nghiêng 0), tự tạo, không hỏi tên style; bỏ câu hỏi ABC/FontChiDinh — từng đối tượng tự nhận diện (ABC → chuyển mã, Unicode → chỉ đổi style, mã chồng lấn/legacy → để lại báo "?"); xác nhận mặc định Yes. Chưa kiểm thử trong AutoCAD.
+- Bộ cài 2.0.1.9: ProductCode mới; `test-package.ps1` 24 PASS, xác nhận nhận diện bản 2.0.1.8 đang cài. Setup SHA-256: `3BF591FDA192EE153E1675CE75BE38D646DD5967B701A42714B4728DEF21FE05`.
 - Chưa làm: gọn các form (Bảng ký hiệu, Quản lý đường nét) theo một khung chung.
+
+## Bản thử 2.0.1.10 — cùng nhánh `feat/density-r-z0` (18/11/2026)
+
+- **Sửa lỗi MRTFONT `bad argument type: lselsetp T`** (người dùng báo trên 2.0.1.9): `(setq ss (or *MRTFONT-Preselection* (ssget ...)))` trả về `T` thay vì bộ chọn. Đổi sang `cond` ở cả `MrT_FontSafe2006.lsp` và `MrT_ABC2Font.lsp`. Tái hiện và xác nhận đã sửa trong AutoCAD 2024 thật (điều khiển qua COM, nạp LSP từ thư mục cài Program Files nên không đổi SECURELOAD).
+- **Nhận diện bảng mã chặt hơn**, kiểm trên bản sao mặt bằng khí y tế tầng 4: trước 692 chuyển / 441 "?", sau 1133 chuyển / 0 "?" / 0 lỗi:
+  - Style ABC (.VnAvantH...) được tin; chỉ "?" khi chuỗi có ký tự > 255 (TCVN3 không sinh được).
+  - Style Unicode: chỉ coi là TCVN3 khi có mã TCVN3 không thuộc chữ Việt Latin-1 (ß « æ Ö §...; Ø × µ ½ tính nửa). "Khí Nén", "PHÒNG 602", "PHÒNG MỔ" không còn bị giữ lại.
+  - Style SHX: chữ thuần ASCII được đổi style; SHX có ký tự ngoài ASCII và font ký hiệu (symbol, gdt, wingding, sym*...) vẫn "?".
+  - Style Mr.T chỉ có typeface (không có tệp font) được nhận là TrueType.
+  - MTEXT có `\fArial...` (Unicode) đổi theo font đích cả khi chạy toàn bản vẽ; \f vào font ký hiệu thì giữ.
+- **Giao diện** (`UiHeader.cs` mới, `UiTheme.cs`): dải tiêu đề tối trên mọi hộp thoại (badge icon xanh theo loại công cụ, nhãn MR.T CAD TOOLSET, tiêu đề lớn, phụ đề/phiên bản bên phải, vạch xanh Autodesk); tiêu đề lớn trong form được chuyển lên dải (hàng cũ thu về 0), control đặt tuyệt đối được dời xuống. Windows 11: viền cửa sổ xanh Autodesk, thanh tiêu đề cùng màu dải. Nhóm ribbon trong form có vạch xanh trên, chú thích nền xanh nhạt. Thêm icon: layers, legend, density, room, keyboard, block. Tab vẫn để hệ thống vẽ (owner-draw làm hỏng test cỡ tối thiểu).
+- Bộ cài 2.0.1.10: ProductCode `{57A9D13B-F5B9-4693-96F0-666AE36C86E8}`; `test-package.ps1` 24 PASS, nhận diện bản 2.0.1.9 đang cài. Setup SHA-256: `E739D16FF937D080383C0470496E697E272DC4B9CF35F0D75D5B5644862D42D8`.
+- Ghi chú: các lần thử đã ghi `MrT_FontTarget` = Bahnschrift (setenv) trên máy này. Chữ kích thước (trong block *D) không được đổi; nếu cần chuẩn hóa thì phải sửa Dimension Style.
+
+## Bản thử 2.0.1.11 — cùng nhánh `feat/density-r-z0` (18/11/2026)
+
+- **Kiểu chữ** trong MRTFONT/MRTFONTALL (`MrT_FontSafe2006.lsp`): câu hỏi thứ hai `[GiuNguyen/Thuong/Hoa/Proper] <GiuNguyen>`. Chỉ đổi phần chữ nhìn thấy; giữ nguyên mã MTEXT (\P, \H..;, \f..;, {}), %%C/%%D/%%nnn, field %<..>%, \U+XXXX; nội dung xếp chồng \S..; được đổi. Thuong/Proper giữ nguyên từ có chữ số (MA4, CO2, D110); Hoa thì viết hoa hết. Bảng hoa/thường tiếng Việt lấy từ `*A2FLT-UpperMap*` (67 cặp) + strcase cho ASCII.
+- **MRTFONT với block**: nếu tập chọn có INSERT thì hỏi `Sửa cả chữ/ATTDEF bên trong block đã chọn [Co/Khong] <Co>`; Co → quét định nghĩa block (bản *U và EffectiveName của block động), block lồng (mỗi định nghĩa một lần), thuộc tính của block lồng. Bỏ qua Xref/layout.
+- **ATTDEF**: prompt được chuyển mã khi style là ABC hoặc prompt có ký tự chỉ có trong TCVN3; chỉ ghi prompt sau khi ghi chữ/style thành công.
+- **Sửa lỗi thuộc tính nhiều dòng**: AutoCAD 2024 bỏ qua `MTextAttributeContent` trên thuộc tính nhiều dòng có sẵn (khung tên tầng 4 báo 6 lỗi); `A2FLT:CommitText` nay ghi lại bằng `TextString` khi đọc lại không khớp. Bản sao tầng 4 với Proper: 1133 chuyển / 0 lỗi / 0 "?".
+- Bộ cài 2.0.1.11: ProductCode `{15DB0B8D-4BC5-4E71-B911-4680D1160C5D}`; `test-package.ps1` 24 PASS, nhận diện 2.0.1.10 đang cài. Setup SHA-256: `5418DF679472BE0AF99BFFB96CDADCF716F9BFA3B783C55CF1393B0C48198925`.
+- **Sự cố khi kiểm thử**: script COM cũ dùng `GetActiveObject` đã gắn vào AutoCAD người dùng đang mở bản vẽ gốc tầng 4 và chạy thử trên đó (chưa lưu; tệp trên đĩa không đổi, người dùng đóng không lưu). Từ nay chỉ dùng trình điều khiển tự khởi động phiên AutoCAD riêng, xác nhận PID mới và chỉ mở bản vẽ trong thư mục nháp; không bao giờ gắn vào phiên AutoCAD sẵn có.
 
 ## Phối hợp hai phiên
 

@@ -85,8 +85,21 @@ namespace MedGas2024.Engine
                 var types=(LinetypeTable)outer.GetObject(db.LinetypeTableId,OpenMode.ForWrite);
                 foreach(var item in plan.Overrides){if(types.Has(item.NewName))throw new InvalidOperationException("Tên nét mới vừa bị chiếm; xem trước lại.");var oldId=db.GetObjectId(false,new Handle(Int64.Parse(item.Row.TypeHandle,NumberStyles.HexNumber,CultureInfo.InvariantCulture)),0);var original=(LinetypeTableRecord)outer.GetObject(oldId,OpenMode.ForRead);var next=(LinetypeTableRecord)original.Clone();next.Name=item.NewName;types.Add(next);outer.AddNewlyCreatedDBObject(next,true);next.SetDashLengthAt(0,item.Dash);next.PatternLength=item.Dash+item.Row.Gap;
                     foreach(var handle in item.Handles){var id=db.GetObjectId(false,new Handle(Int64.Parse(handle,NumberStyles.HexNumber,CultureInfo.InvariantCulture)),0);var entity=outer.GetObject(id,OpenMode.ForWrite) as Entity;if(entity==null||!String.Equals(entity.Layer,item.Row.Layer,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Đường gán nét đã thay đổi; xem trước lại.");var layer=(LayerTableRecord)outer.GetObject(entity.LayerId,OpenMode.ForRead);bool valid=item.FromLayer?(entity.LinetypeId==db.ByLayerLinetype||entity.LinetypeId==oldId||entity.LinetypeId==layer.LinetypeObjectId):entity.LinetypeId==oldId;if(!valid)throw new InvalidOperationException("Nét của đường đã thay đổi; xem trước lại.");entity.LinetypeId=next.ObjectId;}if(!item.FromLayer&&countedOverrides.Add(item.Row.Key))count++;}
+                PurgeOldSpacing(db,outer,plan);
                 outer.Commit();return count;
             }
+        }
+        // Each density run creates fresh "<stem>_SP_n" linetypes. Earlier variants of the same
+        // stem that no object uses any more used to pile up in the DWG; let AutoCAD decide which
+        // are unreferenced (Database.Purge) and erase only those.
+        static void PurgeOldSpacing(Database db,Transaction tr,DensityPlan plan)
+        {
+            var stems=new HashSet<string>(plan.Rows.Where(r=>r.After!="—").Select(r=>DensityMath.ReadableStem(r.Layer,r.Type,r.Text,r.IsOverride)+"_SP_"),StringComparer.OrdinalIgnoreCase);
+            if(stems.Count==0)return;var fresh=new HashSet<string>(plan.Overrides.Select(o=>o.NewName),StringComparer.OrdinalIgnoreCase);
+            if(plan.Batch!=null)foreach(var item in plan.Batch.Items)if(item.Preview!=null&&item.Preview.TypeAfter!=null)fresh.Add(item.Preview.TypeAfter);
+            var candidates=new ObjectIdCollection();var types=(LinetypeTable)tr.GetObject(db.LinetypeTableId,OpenMode.ForRead);
+            foreach(ObjectId id in types){var t=(LinetypeTableRecord)tr.GetObject(id,OpenMode.ForRead);if(fresh.Contains(t.Name))continue;if(stems.Any(s=>t.Name.StartsWith(s,StringComparison.OrdinalIgnoreCase)&&System.Text.RegularExpressions.Regex.IsMatch(t.Name.Substring(s.Length),"^[0-9]+$")))candidates.Add(id);}
+            if(candidates.Count==0)return;db.Purge(candidates);foreach(ObjectId id in candidates){var t=(LinetypeTableRecord)tr.GetObject(id,OpenMode.ForWrite);t.Erase();}
         }
     }
 }

@@ -45,7 +45,8 @@ namespace MedGas2024.Plugin
             geometry.Items.Add(Button("Nối nhanh\npolyline","MRTJOIN","Chọn LINE/polyline và nối ngay; khe mặc định 0.5. Đổi khe bằng MRTJOINTOL; Z0 là bước riêng.",command));
             geometry.Items.Add(Stack(
                 Small("Tách tại điểm","MRTBREAK","Chọn đường rồi chỉ định một điểm tách bằng BREAKATPOINT của AutoCAD.",command),
-                Small("Làm sạch Z = 0","MRTZ0","Quét và xác nhận trước khi đưa về Z=0; theo Z0Clean của Mr.Toan-NhiTW.",command)));
+                Small("Làm sạch Z = 0","MRTZ0","Quét và xác nhận trước khi đưa về Z=0; theo Z0Clean của Mr.Toan-NhiTW.",command),
+                Small("Z=0 + Polyline","MRTZ0PL","Đưa LINE/polyline (cả 3D, lật pháp tuyến) về Z=0 và tùy chọn đổi LINE → polyline giữ handle; có xem trước.",command)));
             geometry.Items.Add(Stack(
                 Small("Kiểm tra Layer block","MRTBLOCKLAY","Quét Layer block mẫu và pick block mẹ cùng đối tượng ngoài.",command),
                 Small("Dồn Layer block","MRTBLOCKMERGE","Dồn Layer thành phần block thường với xem trước phạm vi định nghĩa dùng chung.",command)));

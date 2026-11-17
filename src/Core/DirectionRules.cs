@@ -19,7 +19,7 @@ namespace MedGas2024.Core
         public static double Rotation(double dx,double dy)
         {
             double length=Math.Sqrt(dx*dx+dy*dy);if(!Profile.Finite(length)||length<=1e-12)throw new ArgumentException("Đoạn không có chiều dài.");
-            double tolerance=Math.Sin(.25*Math.PI/180);
+            double tolerance=Math.Sin(NativeDirectionRules.VerticalToleranceDegrees*Math.PI/180);
             if(Math.Abs(dx)/length<=tolerance)return -Math.PI/2; // Top to bottom in WCS XY.
             if(Math.Abs(dy)/length<=tolerance)return 0;
             double a=Math.Atan2(dy,dx);if(dx<0)a+=Math.PI;if(a>Math.PI)a-=2*Math.PI;return a;

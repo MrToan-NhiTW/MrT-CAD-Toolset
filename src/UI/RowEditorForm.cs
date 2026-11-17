@@ -14,7 +14,7 @@ namespace MedGas2024.UI
         private readonly Label error=new Label();
         private readonly Func<GasRow,string> extraValidation;
         public RowEditorForm(GasRow source,bool creating=false,Func<GasRow,string> validateExtra=null,Func<int,int?> colorPicker=null)
-        {
+        {UiTheme.Attach(this);
             extraValidation=validateExtra;
             Value=source.Copy(); Text=creating?"Tạo hệ mới":"Sửa hệ / nhãn / mô tả"; Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;
             Size=new Size(740,580); MinimumSize=Size; StartPosition=FormStartPosition.CenterParent;

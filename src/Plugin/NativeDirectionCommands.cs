@@ -36,13 +36,21 @@ namespace MedGas2024.Plugin
                 var ids=Preselected(doc);
                 if(ids.Length==0)
                 {
-                    var scope=Win.MessageBox.Show("Chọn phạm vi kiểm tra trong không gian hiện tại:\r\nCó: tất cả đường trên Layer bắt đầu bằng Mr.T\r\nKhông: tự chọn đường\r\nHủy: thoát", "Đồng bộ chiều chữ R",Win.MessageBoxButtons.YesNoCancel,Win.MessageBoxIcon.Question);
+                    var scope=Win.MessageBox.Show("Chọn phạm vi kiểm tra trong không gian hiện tại:\r\nCó: mọi LINE/polyline đang dùng nét có chữ (kể cả Layer không mang tên Mr.T)\r\nKhông: tự chọn đường\r\nHủy: thoát", "Đồng bộ chiều chữ R",Win.MessageBoxButtons.YesNoCancel,Win.MessageBoxIcon.Question);
                     if(scope==Win.DialogResult.Cancel)return;
                     if(scope==Win.DialogResult.No){var selection=doc.Editor.GetSelection(new PromptSelectionOptions{MessageForAdding="\nChọn đường/PL cần kiểm tra: "});if(selection.Status!=PromptStatus.OK)return;using(selection.Value)ids=selection.Value.GetObjectIds();}
                     else
                     {
                         var list=new List<ObjectId>();using(var tr=doc.Database.TransactionManager.StartOpenCloseTransaction())
-                        {var space=(BlockTableRecord)tr.GetObject(PickSpace(doc),OpenMode.ForRead);foreach(ObjectId id in space){var e=tr.GetObject(id,OpenMode.ForRead) as Entity;if(e==null||(!(e is Line)&&!(e is Polyline)))continue;var layer=(LayerTableRecord)tr.GetObject(e.LayerId,OpenMode.ForRead);if(layer.Name.StartsWith("Mr.T",StringComparison.OrdinalIgnoreCase))list.Add(id);}}
+                        {
+                            // Previously only Layers named "Mr.T…" were scanned, so pipes on other
+                            // layers (or with an object-level linetype) were silently left reversed.
+                            var space=(BlockTableRecord)tr.GetObject(PickSpace(doc),OpenMode.ForRead);var texted=new Dictionary<ObjectId,bool>();
+                            foreach(ObjectId id in space){var e=tr.GetObject(id,OpenMode.ForRead) as Entity;if(e==null||(!(e is Line)&&!(e is Polyline)))continue;var layer=(LayerTableRecord)tr.GetObject(e.LayerId,OpenMode.ForRead);
+                                var typeId=e.LinetypeId==doc.Database.ByLayerLinetype?layer.LinetypeObjectId:e.LinetypeId;if(typeId.IsNull||typeId==doc.Database.ByBlockLinetype)continue;
+                                bool hasText;if(!texted.TryGetValue(typeId,out hasText)){var type=tr.GetObject(typeId,OpenMode.ForRead) as LinetypeTableRecord;hasText=false;if(type!=null)for(int i=0;i<type.NumDashes;i++)if(!type.ShapeStyleAt(i).IsNull&&type.ShapeNumberAt(i)==0){hasText=true;break;}texted[typeId]=hasText;}
+                                if(hasText)list.Add(id);}
+                        }
                         ids=list.ToArray();
                     }
                 }

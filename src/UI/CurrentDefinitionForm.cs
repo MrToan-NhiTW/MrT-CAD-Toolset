@@ -12,7 +12,7 @@ namespace MedGas2024.UI
         private readonly NumericUpDown dash=new NumericUpDown(),before=new NumericUpDown(),after=new NumericUpDown(),height=new NumericUpDown(),x=new NumericUpDown(),y=new NumericUpDown(),aci=new NumericUpDown();
         private readonly CheckBox fit=new CheckBox(),color=new CheckBox();
         public CurrentDefinitionForm(DrawingLayerInfo row)
-        {
+        {UiTheme.Attach(this);
             Text="Sửa định nghĩa hiện hành — "+row.LayerName;Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(850,740);MinimumSize=Size;StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(18),ColumnCount=2,RowCount=12};root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,180));root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,82));for(int i=0;i<8;i++)root.RowStyles.Add(new RowStyle(SizeType.Absolute,39));root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,43));Controls.Add(root);
             var note=new Label{Text=row.LinetypeName+"\r\nFont/style thực: "+row.Font+"\r\nGiữ nguyên tên, font/style và hướng R/U. Cập nhật nét dùng chung có thể ảnh hưởng nhiều Layer.",Dock=DockStyle.Fill};root.Controls.Add(note,0,0);root.SetColumnSpan(note,2);

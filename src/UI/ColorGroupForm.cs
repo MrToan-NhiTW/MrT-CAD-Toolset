@@ -19,7 +19,7 @@ namespace MedGas2024.UI
         private readonly DataGridView preview=new DataGridView();
         private readonly Button save=new Button();
         public ColorGroupForm(List<GasRow> all,GasRow selected,Func<int,int?> nativePicker=null)
-        {
+        {UiTheme.Attach(this);
             rows=all.ToList();current=selected;Targets=new List<GasRow>();Text="Đổi màu một dòng / cả cụm";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(800,540);MinimumSize=Size;StartPosition=FormStartPosition.CenterParent;
             var layout=new TableLayoutPanel {Dock=DockStyle.Fill,Padding=new Padding(18),ColumnCount=1,RowCount=6};
             foreach(int h in new[]{44,44,84})layout.RowStyles.Add(new RowStyle(SizeType.Absolute,h));layout.RowStyles.Add(new RowStyle(SizeType.Percent,100));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,40));layout.RowStyles.Add(new RowStyle(SizeType.Absolute,42));Controls.Add(layout);

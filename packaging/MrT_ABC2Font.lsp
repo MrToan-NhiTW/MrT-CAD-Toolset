@@ -873,7 +873,11 @@ Chọn font đích [Bahnschrift/Arial/ArialNarrow/TimesNewRoman] <Bahnschrift>: 
   (if (and (member nm '("AcDbAttribute" "AcDbAttributeDefinition"))
            (vlax-property-available-p obj 'MTextAttribute)
            (= (vla-get-MTextAttribute obj) :vlax-true))
-    (progn (vla-put-MTextAttributeContent obj text) (vla-UpdateMTextAttribute obj))
+    (progn
+      (vla-put-MTextAttributeContent obj text) (vla-UpdateMTextAttribute obj)
+      ;; AutoCAD 2024 ignores MTextAttributeContent on existing multiline attributes
+      ;; (verified on the floor-4 title block); TextString writes the whole MTEXT content.
+      (if (/= (vla-get-MTextAttributeContent obj) text) (vla-put-TextString obj text)))
     (vla-put-TextString obj text))
   ;; Read back both writes; never silently count a style failure as converted.
   (setq written
@@ -936,7 +940,8 @@ Chọn font đích [Bahnschrift/Arial/ArialNarrow/TimesNewRoman] <Bahnschrift>: 
           (setq kw (getkword "\nChế độ [Auto/Thuong/Hoa] <Auto> (ép Thuong/Hoa có thể làm hỏng Unicode): "))
           (setq mode (cond ((equal kw "Thuong") "R") ((equal kw "Hoa") "H") (T nil)))
           (prompt "\nChọn chữ hoặc block có attribute. _SEL không sửa chữ trong định nghĩa block: ")
-          (setq ss (or *MRTFONT-Preselection* (ssget '((0 . "TEXT,MTEXT,ATTDEF,ATTRIB,MULTILEADER,INSERT")))))
+          (setq ss (cond (*MRTFONT-Preselection*)
+                         ((ssget '((0 . "TEXT,MTEXT,ATTDEF,ATTRIB,MULTILEADER,INSERT"))))))
           (setq *MRTFONT-Preselection* nil))
         (progn
           (prompt "\nChuyển Auto: Model, Layout và định nghĩa block dùng chung.")

@@ -13,9 +13,9 @@ namespace MedGas2024.UI
         readonly DataGridView preview=new DataGridView();readonly Label note=new Label();readonly CheckBox bold=new CheckBox{Name="BatchBold",Text="Chữ đậm",Checked=true,AutoSize=true};
         readonly CheckBox bylayer=new CheckBox{Name="BatchColorByLayer",Text="Đưa màu các đường trực tiếp về ByLayer",AutoSize=true};readonly CheckBox rebind=new CheckBox{Name="BatchRebind",Text="Cập nhật đường đang ghi đè đúng nét cũ",Checked=true,AutoSize=true};bool loading=true;bool patternOnly;
         public BatchEditForm(List<DrawingLayerInfo> selected,List<DrawingLayerInfo> catalog,Func<int,int?> chooseColor=null)
-        {
+        {UiTheme.Attach(this);
             rows=selected;this.catalog=catalog;if(rows.Count==0)throw new ArgumentException("Chọn ít nhất một dòng.");var row=rows[0];var parts=LayerParts.Read(row);
-            Text="Mr.T Sửa "+rows.Count+" dòng trong DWG | 2.0.1.7";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1180,850);MinimumSize=new Size(1060,780);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
+            Text="Mr.T Sửa "+rows.Count+" dòng trong DWG | 2.0.1.11";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1180,850);MinimumSize=new Size(1060,780);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),ColumnCount=1,RowCount=5};root.RowStyles.Add(new RowStyle(SizeType.Absolute,54));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,72));root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));root.RowStyles.Add(new RowStyle(SizeType.Absolute,22));Controls.Add(root);
             root.Controls.Add(new Label{Text="SỬA "+rows.Count+" LAYER ĐANG CHỌN\r\nChỉ tích các mục muốn đổi. Giá trị ban đầu: "+row.LayerName+"; mục chưa tích giữ nguyên.",Dock=DockStyle.Fill,Font=UiStyle.Body()},0,0);
             var split=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1};split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,55));split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,45));root.Controls.Add(split,0,1);
@@ -58,7 +58,7 @@ namespace MedGas2024.UI
     public sealed class BatchReviewForm : Form
     {
         public BatchReviewForm(List<BatchPreviewRow> rows,string summary,bool canApply)
-        {
+        {UiTheme.Attach(this);
             Text="Mr.T Xem thay đổi trước khi ghi DWG";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1260,790);MinimumSize=new Size(1060,720);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),ColumnCount=1,RowCount=4};root.RowStyles.Add(new RowStyle(SizeType.Absolute,135));root.RowStyles.Add(new RowStyle(SizeType.Percent,60));root.RowStyles.Add(new RowStyle(SizeType.Percent,40));root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));Controls.Add(root);root.Controls.Add(new Label{Text=summary,Dock=DockStyle.Fill},0,0);
             var grid=new DataGridView{Name="BatchReviewGrid",Dock=DockStyle.Fill,ReadOnly=true,AutoGenerateColumns=false,AllowUserToAddRows=false,RowHeadersVisible=false,AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill};UiStyle.Grid(grid);foreach(var s in new[]{new[]{"LayerBefore","Layer cũ"},new[]{"LayerAfter","Layer mới"},new[]{"TypeAfter","Linetype sau"},new[]{"TextBefore","Chữ cũ"},new[]{"TextAfter","Chữ mới"},new[]{"ColorAfter","Màu sau"},new[]{"Detail","Chi tiết / lỗi"}})grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName=s[0],HeaderText=s[1],MinimumWidth=s[0]=="Detail"?220:100});grid.DataSource=rows;root.Controls.Add(grid,0,1);
