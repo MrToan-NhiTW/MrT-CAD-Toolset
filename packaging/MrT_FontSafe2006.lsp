@@ -43,13 +43,33 @@
       (T (setq out (strcat out ch) i (1+ i)))))
   out)
 
-(defun A2FLT:ChooseTarget (/ kw)
-  (initget "Bahnschrift Arial TimesNewRoman")
-  (setq kw (getkword "\nFont đích [Bahnschrift/Arial/TimesNewRoman] <Bahnschrift>: "))
+;;; Mr.T 2.0.1.8: one question only (target font). The last choice is the default,
+;;; the Text Style is always the standard Mr.T_<FONT> style, and ABC/Unicode is
+;;; detected per object instead of being asked.
+(defun A2F2:LastTarget (/ v)
+  (setq v (vl-catch-all-apply 'getenv (list "MrT_FontTarget")))
+  (if (and v (not (vl-catch-all-error-p v)) (member v '("Bahnschrift" "Arial" "ArialNarrow" "TimesNewRoman"))) v "Bahnschrift"))
+
+(defun A2FLT:ChooseTarget (/ kw last)
+  (setq last (A2F2:LastTarget))
+  (initget "Bahnschrift Arial ArialNarrow TimesNewRoman")
+  (setq kw (getkword (strcat "\nFont đích [Bahnschrift/Arial/ArialNarrow/TimesNewRoman] <" last ">: ")))
+  (if (not kw) (setq kw last))
+  (vl-catch-all-apply 'setenv (list "MrT_FontTarget" kw))
   (cond ((equal kw "Arial") (A2FLT:SetTargetArial))
+        ((equal kw "ArialNarrow") (A2FLT:WarnArialNarrow) (A2FLT:SetTargetArialNarrow))
         ((equal kw "TimesNewRoman") (A2FLT:SetTargetTimesNewRoman))
         (T (A2FLT:SetTargetBahnschrift))))
 
+;;; Standard style: Mr.T_<FONT>, height 0, width 1, oblique 0. An existing style with
+;;; that name pointing elsewhere is never edited; a _UNICODE variant is used instead.
+(defun A2F2:AutoStyle (doc)
+  (setq *A2FLT-StyleName* (A2FLT:ResolveTargetStyleName doc *A2FLT-StyleName*))
+  (prompt (strcat "\nText Style chuẩn: " *A2FLT-StyleName*
+    (if (A2FLT:StyleObject doc *A2FLT-StyleName*) " (đã có, dùng lại)." " (sẽ tạo khi áp dụng).")))
+  (princ))
+
+;;; Kept for compatibility with older scripts; no longer called by MRTFONT.
 (defun A2F2:ChooseStyle (doc / name sty fi ok)
   (setq ok nil)
   (while (not ok)
@@ -94,7 +114,25 @@
             ii (if mt (A2FLT:InlineABCInfo raw) '(nil nil))
             abc (or (car si) (car ii)))
       (cond
-        ((equal *A2F2-Mode* "Unicode")
+        ;; Auto: ABC/TCVN3 text is converted; overlapping code points stay for review.
+        ((and abc (A2F2:AmbiguousP raw))
+          (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))
+          (if (< (length *A2F2-Examples*) 12)
+            (setq *A2F2-Examples* (cons (strcat "? " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 0)
+        (abc
+          (setq h (cadr si)
+                new (A2FLT:ConvertString raw (car si) h mt nil))
+          (setq *A2F2-Plans* (cons (list obj raw sn new) *A2F2-Plans*))
+          (if (< (length *A2F2-Examples*) 12)
+            (setq *A2F2-Examples* (cons (strcat "+ " (vla-get-Handle obj) " | " raw " -> " new) *A2F2-Examples*)))
+          1)
+        ;; Not ABC but the characters still look like legacy encoding: never just restyle.
+        ((A2FLT:LegacyContentPFast raw)
+          (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))
+          (if (< (length *A2F2-Examples*) 12)
+            (setq *A2F2-Examples* (cons (strcat "? " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 0)
+        ;; Already Unicode: only the Text Style (and, for picked MTEXT, inline \f) changes.
+        (T
           ;; Whole drawing: require identifiable TrueType; skip inline fonts.
           ;; Explicitly selected objects: normalize font overrides, not text.
           (if (or (and (not *A2F2-Selected*)
@@ -111,20 +149,7 @@
               (setq *A2F2-Plans* (cons (list obj raw sn new) *A2F2-Plans*))
               (if (< (length *A2F2-Examples*) 12)
                 (setq *A2F2-Examples* (cons (strcat "+ " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 1)))
-        ((not abc)
-          (if (A2FLT:LegacyContentPFast raw)
-            (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))) 0)
-        ((A2F2:AmbiguousP raw)
-          (setq *A2FLT-Ambiguous* (1+ *A2FLT-Ambiguous*))
-          (if (< (length *A2F2-Examples*) 12)
-            (setq *A2F2-Examples* (cons (strcat "? " (vla-get-Handle obj) " | " raw) *A2F2-Examples*))) 0)
-        (T
-          (setq h (cadr si)
-                new (A2FLT:ConvertString raw (car si) h mt nil))
-          (setq *A2F2-Plans* (cons (list obj raw sn new) *A2F2-Plans*))
-          (if (< (length *A2F2-Examples*) 12)
-            (setq *A2F2-Examples* (cons (strcat "+ " (vla-get-Handle obj) " | " raw " -> " new) *A2F2-Examples*)))
-          1)))))
+        ))))
 
 (defun A2FLT:Execute (selected / *error* doc undoOpen ss i obj plan r confirmed oldEcho count errors choice)
   (defun *error* (msg)
@@ -136,12 +161,10 @@
   (if (A2FLT:Preflight)
     (progn
       (setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))
-      (initget "ABC FontChiDinh")
-      (setq choice (getkword "\nChế độ [ABC/FontChiDinh] <ABC>: "))
-      (setq *A2F2-Mode* (if (equal choice "FontChiDinh") "Unicode" "ABC")
-            *A2F2-Selected* selected)
-      (if (equal *A2F2-Mode* "Unicode")
-        (prompt "\nFont chỉ định giữ chữ, đổi style; với lựa chọn thủ công sẽ đổi cả font riêng trong MTEXT. Chữ mã ABC có thể hiện sai nếu chỉ đổi font."))
+      ;; No mode question: each object is detected (ABC → chuyển mã; Unicode → chỉ đổi style).
+      (setq *A2F2-Mode* "Auto" *A2F2-Selected* selected)
+      (prompt (strcat "\nTự nhận diện: chữ ABC/TCVN3 được chuyển mã; chữ Unicode chỉ đổi sang style chuẩn"
+        (if selected "; MTEXT được chọn đổi cả font riêng \\f." ".")))
       (if (= (strcase *A2FLT-Typeface*) "BAHNSCHRIFT")
         (prompt "\nLưu ý: Bahnschrift trên máy thử thiếu glyph ỷ; kiểm tra font trên máy và bản vẽ thực tế."))
       (if selected
@@ -152,7 +175,7 @@
       (if (or (not selected) ss)
         (progn
           (A2FLT:ResetRunCaches doc)
-          (A2F2:ChooseStyle doc)
+          (A2F2:AutoStyle doc)
           (setq *A2FLT-Converted* 0 *A2FLT-Errors* 0 *A2FLT-Skipped* 0
                 *A2FLT-Locked* 0 *A2FLT-Ambiguous* 0 *A2F2-Plans* nil *A2F2-Examples* nil)
           (if selected
@@ -173,8 +196,8 @@
           (if *A2F2-Plans*
             (progn
               (initget "Yes No")
-              (setq confirmed (getkword "\nThay các mục có thể chuyển? Block dùng chung ảnh hưởng mọi tham chiếu. [Yes/No] <No>: "))
-              (if (equal confirmed "Yes")
+              (setq confirmed (getkword "\nÁp dụng? Block dùng chung ảnh hưởng mọi tham chiếu; UNDO để hoàn tác. [Yes/No] <Yes>: "))
+              (if (not (equal confirmed "No"))
                 (progn
                   (setq oldEcho (getvar "CMDECHO") count 0 errors 0)
                   (setvar "CMDECHO" 0) (vla-StartUndoMark doc) (setq undoOpen T)
@@ -195,12 +218,12 @@
 (defun A2F2:ApplyOne (obj raw style new / r restore)
   (if (and (= raw (A2F2:Raw obj)) (= (strcase style) (strcase (A2FLT:ObjectStyleName obj))))
     (progn
-      (setq r (if (and (equal *A2F2-Mode* "Unicode") (= raw new))
+      (setq r (if (= raw new)
                 (vl-catch-all-apply 'A2F2:StyleOnly (list obj *A2FLT-StyleName*))
                 (vl-catch-all-apply 'A2FLT:CommitText (list obj new *A2FLT-StyleName*))))
       (if (or (vl-catch-all-error-p r) (not r))
         (progn
-          (setq restore (if (and (equal *A2F2-Mode* "Unicode") (= raw new))
+          (setq restore (if (= raw new)
                           (vl-catch-all-apply 'A2F2:StyleOnly (list obj style))
                           (vl-catch-all-apply 'A2FLT:CommitText (list obj raw style))))
           (if (or (vl-catch-all-error-p restore) (not restore))

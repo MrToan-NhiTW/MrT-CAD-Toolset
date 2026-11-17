@@ -25,7 +25,7 @@ namespace MedGas2024.UI
         private readonly Button save=new Button();
         private bool loading=true;
         public NewSystemForm(Profile settings,List<GasRow> currentRows,GasRow defaults,Func<int,int?> nativePicker=null)
-        {
+        {UiTheme.Attach(this);
             profile=settings;seed=defaults.Copy();existing=currentRows.Select(x=>x.Copy()).ToList();NewRows=new List<GasRow>();
             Text="Tạo hệ mới — một cỡ hoặc hàng loạt";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(950,740);MinimumSize=new Size(900,680);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel {Dock=DockStyle.Fill,Padding=new Padding(18),ColumnCount=1,RowCount=8};

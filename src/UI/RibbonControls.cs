@@ -16,7 +16,7 @@ namespace MedGas2024.UI
                 graphics.SmoothingMode=SmoothingMode.AntiAlias;
                 graphics.TranslateTransform(bounds.Left,bounds.Top);graphics.ScaleTransform(bounds.Width/32F,bounds.Height/32F);
                 Color pale=muted?Color.FromArgb(238,240,242):light?Color.FromArgb(55,128,173):Color.FromArgb(230,240,250);
-                Color green=muted?ink:light?Color.White:Color.FromArgb(38,143,100);
+                Color green=muted?ink:light?Color.White:Color.FromArgb(6,150,215);
                 using(var pen=new Pen(ink,1.7F))using(var fill=new SolidBrush(pale))using(var accent=new Pen(green,2F))
                 {
                     pen.StartCap=pen.EndCap=LineCap.Round;pen.LineJoin=LineJoin.Round;accent.StartCap=accent.EndCap=LineCap.Round;
@@ -75,7 +75,7 @@ namespace MedGas2024.UI
         private bool hover,pressed;
         public RibbonButton(string icon)
         {
-            IconKey=icon;Font=UiStyle.Emphasis(10.5F);AutoSize=false;FlatStyle=FlatStyle.Flat;BackColor=Color.White;ForeColor=Color.FromArgb(32,65,91);Margin=new Padding(2);TabStop=true;
+            IconKey=icon;Font=UiStyle.Emphasis(10.5F);AutoSize=false;FlatStyle=FlatStyle.Flat;BackColor=Color.White;ForeColor=Color.FromArgb(60,60,60);Margin=new Padding(2);TabStop=true;
             SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.ResizeRedraw,true);
         }
         protected override void OnMouseEnter(EventArgs e){hover=true;Invalidate();base.OnMouseEnter(e);}
@@ -85,10 +85,10 @@ namespace MedGas2024.UI
         protected override void OnPaint(PaintEventArgs e)
         {
             float scale=DeviceDpi/96F;bool blue=Enabled&&BackColor.B>BackColor.R+30&&BackColor.R<100;
-            Color face=!Enabled?Color.FromArgb(239,242,245):pressed?Color.FromArgb(211,229,243):hover&&!blue?Color.FromArgb(233,243,252):BackColor;
-            Color ink=!Enabled?Color.FromArgb(149,159,170):blue?Color.White:ForeColor;
+            Color face=!Enabled?Color.FromArgb(242,242,242):pressed?UiTheme.Selection:hover&&!blue?UiTheme.AccentSoft:BackColor;
+            Color ink=!Enabled?Color.FromArgb(160,160,160):blue?Color.White:ForeColor;
             using(var b=new SolidBrush(face))e.Graphics.FillRectangle(b,ClientRectangle);
-            using(var p=new Pen(!Enabled?Color.FromArgb(225,230,235):hover?Color.FromArgb(102,155,197):blue?BackColor:Color.FromArgb(233,237,242)))e.Graphics.DrawRectangle(p,0,0,Width-1,Height-1);
+            using(var p=new Pen(!Enabled?Color.FromArgb(225,225,225):hover?UiTheme.Accent:blue?BackColor:Color.FromArgb(230,230,230)))e.Graphics.DrawRectangle(p,0,0,Width-1,Height-1);
             int size=(int)(28*scale);var icon=new Rectangle((Width-size)/2,(int)(7*scale),size,size);RibbonIcons.Draw(e.Graphics,IconKey,icon,ink,!Enabled,blue);
             var label=new Rectangle(3,icon.Bottom+(int)(5*scale),Width-6,Math.Max(10,Height-icon.Bottom-(int)(7*scale)));
             TextRenderer.DrawText(e.Graphics,Text,Font,label,ink,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter|TextFormatFlags.WordBreak|TextFormatFlags.NoPrefix);
@@ -104,7 +104,7 @@ namespace MedGas2024.UI
             Name=name;AccessibleName=title;AccessibleRole=AccessibleRole.Grouping;Dock=DockStyle.Fill;BackColor=Color.White;Margin=new Padding(0,0,8,0);Padding=new Padding(5,5,5,0);
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=2,Margin=Padding.Empty};root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,25));Controls.Add(root);
             content.Dock=DockStyle.Fill;content.RowCount=1;content.RowStyles.Add(new RowStyle(SizeType.Percent,100));content.Margin=Padding.Empty;root.Controls.Add(content,0,0);
-            caption.Name=name+"Caption";caption.Text=title;caption.Dock=DockStyle.Fill;caption.Margin=Padding.Empty;caption.TextAlign=ContentAlignment.MiddleCenter;caption.BackColor=Color.FromArgb(235,242,248);caption.ForeColor=Color.FromArgb(45,76,99);caption.Font=UiStyle.Emphasis(10F);root.Controls.Add(caption,0,1);
+            caption.Name=name+"Caption";caption.Text=title;caption.Dock=DockStyle.Fill;caption.Margin=Padding.Empty;caption.TextAlign=ContentAlignment.MiddleCenter;caption.BackColor=Color.FromArgb(240,240,240);caption.ForeColor=Color.FromArgb(90,90,90);caption.Font=UiStyle.Emphasis(10F);root.Controls.Add(caption,0,1);
         }
         public void AddCommands(params Button[] buttons){foreach(var b in buttons)AddCommand(b);}
         public void AddCommand(Button button,float weight=100)
@@ -113,6 +113,6 @@ namespace MedGas2024.UI
             var host=new Panel{Name=button.Name+"Host",Dock=DockStyle.Fill,Margin=new Padding(2,0,2,4)};
             button.Dock=DockStyle.Fill;button.Margin=Padding.Empty;host.Controls.Add(button);content.Controls.Add(host,index,0);
         }
-        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);using(var pen=new Pen(Color.FromArgb(190,207,222)))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);}
+        protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);using(var pen=new Pen(UiTheme.Line))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);}
     }
 }

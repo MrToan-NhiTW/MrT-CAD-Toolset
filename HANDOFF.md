@@ -49,6 +49,13 @@ Ba nhánh tách riêng từ `main`, mỗi nhánh đã chạy `build.ps1` thành 
 - **MRTZ0PL** (mới, `FlattenService`): chiếu LINE/LWPOLYLINE/polyline 2D cũ/polyline 3D xuống Z=0 (giữ X,Y), sửa polyline lật pháp tuyến (đổi dấu bulge); tùy chọn đổi LINE → LWPOLYLINE bằng `HandOverTo` (giữ handle, thuộc tính, XData). Polyline 2D/3D thành LWPOLYLINE mới (handle mới). Bỏ qua: trong block, Layer khóa/Xref, LINE đứng theo Z, polyline spline/fit, đối tượng có liên kết. Chưa kiểm thử native.
 - Linetype **U=0**: công cụ đã có tùy chọn tạo "U=0 (thử nghiệm)" trong Quản lý đường nét; API .NET 2024 không đặt được cờ upright nên cần đường LIN/entmod nếu muốn chuyển hàng loạt. Chưa làm lệnh chuyển R→U.
 - Bộ cài 2.0.1.8: ProductCode mới; `test-package.ps1` 24 PASS, gồm xác nhận nhận diện và thay bản 2.0.1.7 đang cài. Setup SHA-256: `5A2959440A74962CBBA9F369961CEFF50A9ED7B01231713C61396B52B2226641`.
+- Người dùng đã cài 2.0.1.8 (bản có MRTZ0PL) trước đợt giao diện dưới đây.
+
+## Bản thử 2.0.1.9 — cùng nhánh `feat/density-r-z0`
+
+- **Giao diện kiểu Autodesk** (`src/UI/UiTheme.cs`): nền xám trung tính, nút chính xanh Autodesk #0696D7, nút phụ viền xám, bảng kẻ ngang, tiêu đề cột xám nhạt, dòng chọn xanh nhạt, chữ Segoe UI 11 pt (trước 10,5). `UiTheme.Attach(this)` ở đầu constructor của cả 25 Form (UI + Plugin); chỉ đổi màu/viền/font, không đổi kích thước nút để giữ các test "fits at minimum size". Đã nới: hàng tìm kiếm/ghi chú của Quản lý đường nét, cỡ tối thiểu Bảng ký hiệu 1240×800, cột "Loại". Ribbon trong form đổi sang bảng màu trung tính.
+- **Đổi font (MRTFONT/MRTFONTALL)** trong `MrT_FontSafe2006.lsp`: chỉ còn hỏi font đích (nhớ lựa chọn lần trước qua `setenv MrT_FontTarget`, thêm ArialNarrow); Text Style luôn là `Mr.T_<FONT>` chuẩn (cao 0, rộng 1, nghiêng 0), tự tạo, không hỏi tên style; bỏ câu hỏi ABC/FontChiDinh — từng đối tượng tự nhận diện (ABC → chuyển mã, Unicode → chỉ đổi style, mã chồng lấn/legacy → để lại báo "?"); xác nhận mặc định Yes. Chưa kiểm thử trong AutoCAD.
+- Bộ cài 2.0.1.9: ProductCode mới; `test-package.ps1` 24 PASS, xác nhận nhận diện bản 2.0.1.8 đang cài. Setup SHA-256: `3BF591FDA192EE153E1675CE75BE38D646DD5967B701A42714B4728DEF21FE05`.
 - Chưa làm: gọn các form (Bảng ký hiệu, Quản lý đường nét) theo một khung chung.
 
 ## Phối hợp hai phiên

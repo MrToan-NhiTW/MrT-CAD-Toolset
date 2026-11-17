@@ -15,8 +15,8 @@ namespace MedGas2024.UI
         private readonly Func<List<DrawingLayerInfo>,BatchEdit,bool> batch;private readonly Func<int,int?> palette;
         private readonly ToolTip tips=new ToolTip{InitialDelay=400,ShowAlways=true,AutoPopDelay=15000};
         public DrawingManagerForm(List<DrawingLayerInfo> rows,Func<List<DrawingLayerInfo>> reload,Action<DrawingLayerInfo,DefinitionEdit> update,Func<List<DrawingLayerInfo>,BatchEdit,bool> bulk=null,Func<int,int?> chooseColor=null)
-        {
-            read=reload;save=update;batch=bulk;palette=chooseColor;Text="Mr.T Quản lý đường nét | DWG hiện tại | 2.0.1.8";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1280,790);MinimumSize=new Size(1050,680);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
+        {UiTheme.Attach(this);
+            read=reload;save=update;batch=bulk;palette=chooseColor;Text="Mr.T Quản lý đường nét | DWG hiện tại | 2.0.1.9";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1280,790);MinimumSize=new Size(1050,680);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),RowCount=5,ColumnCount=1};foreach(int h in new[]{44,124})root.RowStyles.Add(new RowStyle(SizeType.Absolute,h));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,85));root.RowStyles.Add(new RowStyle(SizeType.Absolute,24));Controls.Add(root);
             root.Controls.Add(new Label{Text="Mr.T Quản lý đường nét",Font=UiStyle.Emphasis(20),Dock=DockStyle.Fill},0,0);
             var actions=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=3,RowCount=1,Margin=Padding.Empty};actions.RowStyles.Add(new RowStyle(SizeType.Percent,100));foreach(float w in new[]{40F,40F,20F})actions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,w));

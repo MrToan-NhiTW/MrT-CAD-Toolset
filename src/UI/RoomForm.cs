@@ -19,8 +19,8 @@ namespace MedGas2024.UI
         static void Field(FlowLayoutPanel p,string text,Control c){p.Controls.Add(new Label{Text=text,AutoSize=true,Margin=new Padding(6,7,3,0)});p.Controls.Add(c);}
         static void Guard(Action a){try{a();}catch(Exception e){MessageBox.Show(e.Message,"Mr.T tên phòng",MessageBoxButtons.OK,MessageBoxIcon.Information);}}
         public RoomForm(Func<RoomEntry,double,bool,bool> insert,Action<RoomCatalog,bool> apply)
-        {
-            place=insert;update=apply;Text="Mr.T Tên phòng | 2.0.1.8";Font=UiStyle.Body();Size=new Size(1180,760);MinimumSize=new Size(950,620);StartPosition=FormStartPosition.CenterParent;
+        {UiTheme.Attach(this);
+            place=insert;update=apply;Text="Mr.T Tên phòng | 2.0.1.9";Font=UiStyle.Body();Size=new Size(1180,760);MinimumSize=new Size(950,620);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=6};root.RowStyles.Add(new RowStyle(SizeType.Absolute,36));root.RowStyles.Add(new RowStyle(SizeType.Absolute,39));root.RowStyles.Add(new RowStyle(SizeType.Absolute,80));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,52));root.RowStyles.Add(new RowStyle(SizeType.Absolute,62));Controls.Add(root);
             root.Controls.Add(new Label{Text="TÊN PHÒNG CŨ / MỚI",Font=UiStyle.Emphasis(17),Dock=DockStyle.Fill},0,0);
             var input=new FlowLayoutPanel{Dock=DockStyle.Fill};Field(input,"Excel:",file);var browse=new Button{Text="Chọn Excel...",AutoSize=true};input.Controls.Add(browse);Field(input,"Sheet:",sheet);Field(input,"Dòng tiêu đề:",header);root.Controls.Add(input,0,1);
@@ -47,7 +47,7 @@ namespace MedGas2024.UI
     public sealed class RoomReviewForm:Form
     {
         public RoomReviewForm(List<RoomReviewRow> rows,string summary)
-        {
+        {UiTheme.Attach(this);
             Text="Xem trước cập nhật tên phòng";Font=UiStyle.Body();Size=new Size(1100,670);MinimumSize=new Size(800,520);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=3};root.RowStyles.Add(new RowStyle(SizeType.Absolute,60));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));Controls.Add(root);root.Controls.Add(new Label{Text=summary,Dock=DockStyle.Fill},0,0);
             var grid=new DataGridView{Dock=DockStyle.Fill,AutoGenerateColumns=false,ReadOnly=true,AllowUserToAddRows=false,RowHeadersVisible=false,DataSource=rows};UiStyle.Grid(grid);foreach(var col in new[]{new[]{"Handle","Handle","70"},new[]{"Id","ID gốc","190"},new[]{"Current","Hiện tại","220"},new[]{"After","Sau cập nhật","220"},new[]{"Status","Kết quả / lý do","260"}})grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName=col[0],HeaderText=col[1],Width=Int32.Parse(col[2])});root.Controls.Add(grid,0,1);
