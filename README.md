@@ -1,6 +1,6 @@
 # Mr.T CAD Toolset
 
-Add-in cho AutoCAD 2024 x64. Bản nền trong kho: **2.0.1.6**, bản thử. Nhánh `test/combined-2026-11-17` dựng bản thử **2.0.1.7** (xem HANDOFF.md).
+Add-in cho AutoCAD 2024 x64. Bản thử **2.0.2.0** kế thừa 2.0.1.11. [Tải bộ cài offline](releases/MrT_CAD_Toolset_2.0.2.0_Setup.exe).
 
 ## Bắt đầu
 
@@ -9,12 +9,12 @@ Add-in cho AutoCAD 2024 x64. Bản nền trong kho: **2.0.1.6**, bản thử. Nh
 - `profiles/`: cấu hình mặc định rỗng; không nạp trước danh mục hệ ống vào DWG.
 - `tests/`, `reference-originals/`: kiểm thử và mẫu nét tham chiếu. `tests/room_fixture.xlsx` là dữ liệu giả để kiểm thử, không phải danh sách phòng của người dùng.
 - `evidence/`: các ảnh giao diện mẫu cần cho hướng dẫn trong bộ cài.
-- `releases/`: bộ cài 2.0.1.6 đã bàn giao cho người dùng kiểm tra.
+- `releases/`: các bộ cài đã bàn giao.
 - [Bàn giao phát triển](HANDOFF.md): kết quả, hạn chế và yêu cầu tiếp theo.
 
 Build trên Windows x64 có AutoCAD 2024 đầy đủ, .NET Framework và bộ công cụ Windows Installer theo `build.ps1`. Từ PowerShell, chạy `./build.ps1`, sau đó `./package.ps1 -SkipBuild`. Các kiểm thử native cần AutoCAD; không coi việc biên dịch là xác nhận chạy đúng trong DWG. Nếu máy không cài AutoCAD tại vị trí mặc định, xem tham số `-AutoCADPath`.
 
-Hiện dùng `build.ps1` làm quy trình build chính thức. Các tệp `.csproj` và `.sln` cũ chưa theo kịp danh sách nguồn hiện tại, nên chưa được xác nhận có thể build đầy đủ bằng Visual Studio; cần rà soát riêng trước khi dùng.
+Dùng build.ps1 để biên dịch và chạy kiểm thử trước khi đóng gói. Solution cũng hỗ trợ Release|x64 với AutoCAD 2024 và .NET Framework 4.8.
 
 Kho chỉ chứa mã, bộ cài và dữ liệu thử cần thiết. Bản vẽ DWG thực tế, Excel công việc, thông tin đăng nhập và log cá nhân phải quản lý riêng.
 

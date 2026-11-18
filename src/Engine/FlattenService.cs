@@ -36,6 +36,28 @@ namespace MedGas2024.Engine
         static bool Flat(double z){return Math.Abs(z)<=Tolerance;}
         static bool UpNormal(Vector3d n){return Math.Abs(n.X)<=1e-12&&Math.Abs(n.Y)<=1e-12&&n.Z>0;}
         static bool Linked(Entity e){return !e.ExtensionDictionary.IsNull||e.GetPersistentReactorIds().Count>0;}
+        static bool Tilted(Vector3d normal)
+        {
+            return Math.Abs(normal.X)>1e-12 || Math.Abs(normal.Y)>1e-12;
+        }
+
+        // A tilted circle projects to an ellipse. A polyline bulge cannot represent it.
+        // Reject collapsed XY segments too, to preserve vertex-to-width/bulge associations.
+        static string ProjectionIssue(IList<Point3d> points, bool closed, Vector3d normal, Func<int,double> bulge)
+        {
+            if(points.Count<2) return "polyline thiếu đỉnh";
+            int segments=closed ? points.Count : points.Count-1;
+            for(int i=0;i<segments;i++)
+            {
+                if(bulge!=null && Tilted(normal) && bulge(i)!=0)
+                    return "cung nghiêng chiếu thành elip; giữ nguyên đường gốc";
+                var a=points[i];
+                var b=points[(i+1)%points.Count];
+                if(new Point2d(a.X,a.Y).GetDistanceTo(new Point2d(b.X,b.Y))<=Tolerance)
+                    return "đoạn chiếu xuống XY thành một điểm";
+            }
+            return null;
+        }
         public static FlattenPlan Inspect(Database db,IEnumerable<ObjectId> ids)
         {
             var plan=new FlattenPlan();
@@ -56,12 +78,36 @@ namespace MedGas2024.Engine
                     if(Flat(a.Z)&&Flat(b.Z)&&UpNormal(line.Normal))plan.FlatLines.Add(id);else plan.Lines.Add(id);continue;
                 }
                 var pl=e as Polyline;
-                if(pl!=null){if(Flat(pl.Elevation)&&UpNormal(pl.Normal)){plan.AlreadyFlat++;continue;}if(pl.NumberOfVertices<2){plan.Skipped.Add(tag+"polyline thiếu đỉnh");continue;}if(Linked(pl)&&!UpNormal(pl.Normal)){plan.Skipped.Add(tag+"polyline lật pháp tuyến có dữ liệu liên kết");continue;}plan.Polylines.Add(id);continue;}
+                if(pl!=null)
+                {
+                    if(Flat(pl.Elevation)&&UpNormal(pl.Normal)){plan.AlreadyFlat++;continue;}
+                    if(!UpNormal(pl.Normal))
+                    {
+                        if(Linked(pl)){plan.Skipped.Add(tag+"polyline có dữ liệu liên kết");continue;}
+                        var points=Enumerable.Range(0,pl.NumberOfVertices).Select(pl.GetPoint3dAt).ToList();
+                        var issue=ProjectionIssue(points,pl.Closed,pl.Normal,pl.GetBulgeAt);
+                        if(issue!=null){plan.Skipped.Add(tag+issue);continue;}
+                    }
+                    if(pl.NumberOfVertices<2){plan.Skipped.Add(tag+"polyline thiếu đỉnh");continue;}
+                    plan.Polylines.Add(id);continue;
+                }
                 var p3=e as Polyline3d;
-                if(p3!=null){if(p3.PolyType!=Poly3dType.SimplePoly){plan.Skipped.Add(tag+"polyline 3D dạng spline");continue;}if(Linked(p3)){plan.Skipped.Add(tag+"polyline 3D có dữ liệu liên kết");continue;}plan.Polylines3d.Add(id);continue;}
+                if(p3!=null)
+                {
+                    if(p3.PolyType!=Poly3dType.SimplePoly){plan.Skipped.Add(tag+"polyline 3D dạng spline");continue;}
+                    if(Linked(p3)){plan.Skipped.Add(tag+"polyline 3D có dữ liệu liên kết");continue;}
+                    var points=p3.Cast<ObjectId>().Select(v=>((PolylineVertex3d)tr.GetObject(v,OpenMode.ForRead)).Position).ToList();
+                    var issue=ProjectionIssue(points,p3.Closed,Vector3d.ZAxis,null);
+                    if(issue!=null){plan.Skipped.Add(tag+issue);continue;}
+                    plan.Polylines3d.Add(id);continue;
+                }
                 var p2=(Polyline2d)e;
                 if(Flat(p2.Elevation)&&UpNormal(p2.Normal)){plan.AlreadyFlat++;continue;}
-                if(p2.PolyType!=Poly2dType.SimplePoly){plan.Skipped.Add(tag+"polyline 2D dạng fit/spline");continue;}if(Linked(p2)){plan.Skipped.Add(tag+"polyline 2D có dữ liệu liên kết");continue;}
+                if(p2.PolyType!=Poly2dType.SimplePoly){plan.Skipped.Add(tag+"polyline 2D dạng fit/spline");continue;}
+                if(Linked(p2)){plan.Skipped.Add(tag+"polyline 2D có dữ liệu liên kết");continue;}
+                var vertices=p2.Cast<ObjectId>().Select(v=>(Vertex2d)tr.GetObject(v,OpenMode.ForRead)).ToList();
+                string reason=ProjectionIssue(vertices.Select(p2.VertexPosition).ToList(),p2.Closed,p2.Normal,i=>vertices[i].Bulge);
+                if(reason!=null){plan.Skipped.Add(tag+reason);continue;}
                 plan.Polylines2d.Add(id);
             }
             return plan;
@@ -85,13 +131,20 @@ namespace MedGas2024.Engine
         }
         static Polyline FromPoints(IList<Point3d> points,IList<double> bulges,bool closed)
         {
-            var p=new Polyline();p.Normal=Vector3d.ZAxis;p.Elevation=0;int n=0;
-            for(int i=0;i<points.Count;i++){var q=new Point2d(points[i].X,points[i].Y);if(n>0&&q.GetDistanceTo(p.GetPoint2dAt(n-1))<=Tolerance)continue;p.AddVertexAt(n,q,bulges==null?0:bulges[i],0,0);n++;}
-            if(n<2)throw new InvalidOperationException("sau khi chiếu xuống chỉ còn một điểm");
-            p.Closed=closed;return p;
+            var p=new Polyline(points.Count);
+            for(int i=0;i<points.Count;i++)
+                p.AddVertexAt(i,new Point2d(points[i].X,points[i].Y),bulges==null?0:bulges[i],0,0);
+            p.Closed=closed;
+            return p;
         }
         public static int Apply(Database db,FlattenPlan plan,bool convertLines)
         {
+            Dictionary<ObjectId,ObjectId[]> ignored;
+            return Apply(db,plan,convertLines,out ignored);
+        }
+        public static int Apply(Database db,FlattenPlan plan,bool convertLines,out Dictionary<ObjectId,ObjectId[]> replacements)
+        {
+            var changedIds=new Dictionary<ObjectId,ObjectId[]>();
             int count=0;using(var tr=db.TransactionManager.StartTransaction())
             {
                 foreach(var id in plan.Lines.Concat(convertLines?plan.FlatLines:Enumerable.Empty<ObjectId>()))
@@ -105,29 +158,44 @@ namespace MedGas2024.Engine
                 {
                     var pl=(Polyline)tr.GetObject(id,OpenMode.ForWrite);
                     if(UpNormal(pl.Normal)){pl.Elevation=0;count++;continue;}
-                    // Flipped (mirrored) or tilted polylines: rebuild from WCS vertices. A flipped
-                    // normal reverses arc orientation, so bulges change sign; tilted arcs cannot be
-                    // projected exactly and become straight chords.
-                    bool flipped=Math.Abs(pl.Normal.X)<=1e-12&&Math.Abs(pl.Normal.Y)<=1e-12&&pl.Normal.Z<0;
-                    var points=new List<Point3d>();var bulges=new List<double>();var widths=new List<Tuple<double,double>>();
-                    for(int i=0;i<pl.NumberOfVertices;i++){points.Add(pl.GetPoint3dAt(i));bulges.Add(flipped?-pl.GetBulgeAt(i):0);widths.Add(Tuple.Create(pl.GetStartWidthAt(i),pl.GetEndWidthAt(i)));}
-                    var fresh=FromPoints(points,bulges,pl.Closed);if(fresh.NumberOfVertices==points.Count)for(int i=0;i<points.Count;i++){fresh.SetStartWidthAt(i,widths[i].Item1);fresh.SetEndWidthAt(i,widths[i].Item2);}
+                    bool flipped=!Tilted(pl.Normal)&&pl.Normal.Z<0;
+                    var points=Enumerable.Range(0,pl.NumberOfVertices).Select(pl.GetPoint3dAt).ToList();
+                    var bulges=Enumerable.Range(0,points.Count).Select(i=>flipped?-pl.GetBulgeAt(i):pl.GetBulgeAt(i)).ToList();
+                    var fresh=FromPoints(points,bulges,pl.Closed);
+                    for(int i=0;i<points.Count;i++)
+                    {
+                        fresh.SetStartWidthAt(i,pl.GetStartWidthAt(i));
+                        fresh.SetEndWidthAt(i,pl.GetEndWidthAt(i));
+                    }
                     fresh.Plinegen=pl.Plinegen;Replace(tr,pl,fresh);count++;
                 }
                 foreach(var id in plan.Polylines3d)
                 {
                     var p3=(Polyline3d)tr.GetObject(id,OpenMode.ForRead);var points=new List<Point3d>();
                     foreach(ObjectId v in p3){var vertex=(PolylineVertex3d)tr.GetObject(v,OpenMode.ForRead);points.Add(vertex.Position);}
-                    ReplaceComplex(tr,p3,FromPoints(points,null,p3.Closed));count++;
+                    var fresh=FromPoints(points,null,p3.Closed);
+                    ReplaceComplex(tr,p3,fresh);
+                    changedIds.Add(id,new[]{fresh.ObjectId});count++;
                 }
                 foreach(var id in plan.Polylines2d)
                 {
-                    var p2=(Polyline2d)tr.GetObject(id,OpenMode.ForRead);bool flipped=p2.Normal.Z<0;var points=new List<Point3d>();var bulges=new List<double>();
-                    foreach(ObjectId v in p2){var vertex=(Vertex2d)tr.GetObject(v,OpenMode.ForRead);points.Add(p2.VertexPosition(vertex));bulges.Add(UpNormal(p2.Normal)?vertex.Bulge:flipped?-vertex.Bulge:0);}
-                    var fresh=FromPoints(points,bulges,p2.Closed);fresh.Plinegen=p2.LinetypeGenerationOn;ReplaceComplex(tr,p2,fresh);count++;
+                    var p2=(Polyline2d)tr.GetObject(id,OpenMode.ForRead);
+                    var vertices=p2.Cast<ObjectId>().Select(v=>(Vertex2d)tr.GetObject(v,OpenMode.ForRead)).ToList();
+                    var points=vertices.Select(p2.VertexPosition).ToList();
+                    var bulges=vertices.Select(v=>p2.Normal.Z<0?-v.Bulge:v.Bulge).ToList();
+                    var fresh=FromPoints(points,bulges,p2.Closed);
+                    for(int i=0;i<vertices.Count;i++)
+                    {
+                        fresh.SetStartWidthAt(i,vertices[i].StartWidth);
+                        fresh.SetEndWidthAt(i,vertices[i].EndWidth);
+                    }
+                    fresh.Plinegen=p2.LinetypeGenerationOn;
+                    ReplaceComplex(tr,p2,fresh);
+                    changedIds.Add(id,new[]{fresh.ObjectId});count++;
                 }
                 tr.Commit();
             }
+            replacements=changedIds;
             return count;
         }
     }

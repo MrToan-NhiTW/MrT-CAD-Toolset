@@ -1,4 +1,15 @@
-# Bàn giao phát triển — mới nhất 2.0.1.11 (nhánh `feat/density-r-z0`)
+# Bàn giao 2.0.2.0
+
+Nhánh **fix/2.0.2.0** kế thừa 2.0.1.11. Bộ cài thử ở **releases/MrT_CAD_Toolset_2.0.2.0_Setup.exe** theo yêu cầu đồng bộ hai máy.
+
+- Chuyển ABC tự động giữ lại chuỗi nhập nhằng như PHÒNG, cả trong prompt ATTDEF.
+- MRTZ0PL bỏ qua cung nghiêng và đoạn chiếu co về một điểm, bảo toàn độ rộng đỉnh và chuyển liên kết Isolate sang polyline thay thế.
+- Bảng ký hiệu yêu cầu pick lại khi mất ống nguồn và các ống thay thế khác màu hoặc lineweight.
+- Các project của solution lấy đủ tệp nguồn giống build.ps1.
+
+Bản đã build bằng build.ps1 và MSBuild Release|x64. Kiểm tra MSI nhận bản cũ 2.0.1.11 và xác minh 135 tệp trong CAB. SHA-256 bộ cài **BE8783301FDCF3AE390E226770FBDF66A07CEBAE137AB3A624361051D7AFAE23**. Bộ mô phỏng đọc thuộc tính đã chạy 13 ca trên LISP đóng gói. Hai lệnh kiểm thử DWG MRTZ0PL2020TEST và MRTLEGSYNC2015TEST nằm trong bin/LegendPipeSyncRuntime.dll. Core Console trên máy build gặp lỗi khởi tạo profile/registry trước khi chạy hai lệnh. Chờ thử trong AutoCAD 2024.
+
+## Nhật ký bàn giao 2.0.1.11
 
 ## Quy trình: chạy offline trên máy trước, đẩy GitHub sau
 

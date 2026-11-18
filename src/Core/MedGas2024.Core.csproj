@@ -4,12 +4,8 @@
     <ProjectGuid>{40EEB159-2D3C-4E82-8111-3079D2640601}</ProjectGuid>
     <AssemblyName>MedGas2024.Core</AssemblyName><RootNamespace>MedGas2024.Core</RootNamespace>
   </PropertyGroup>
-  <ItemGroup><Compile Include="Model.cs" /><Compile Include="DrawingData.cs" /><Compile Include="LinetypeSegments.cs" /><Compile Include="ScaleSettings.cs" /><Compile Include="DirectionRules.cs" /><Compile Include="BatchEdit.cs" /><Compile Include="LabelGroups.cs" /><Compile Include="LabelBrowse.cs" /><Compile Include="LinReader.cs" /><Compile Include="Spacing.cs" /></ItemGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-<ItemGroup><Compile Include="FamilySizes.cs" /></ItemGroup>
-<ItemGroup><Compile Include="PickCombination.cs" /></ItemGroup>
-<ItemGroup><Compile Include="Legend.cs" /></ItemGroup>
-<ItemGroup><Compile Include="IsolationSelection.cs" /></ItemGroup>
-<ItemGroup><Compile Include="LegendMetrics.cs" /></ItemGroup>
-<ItemGroup><Compile Include="LegacyMapping.cs" /></ItemGroup>
 </Project>

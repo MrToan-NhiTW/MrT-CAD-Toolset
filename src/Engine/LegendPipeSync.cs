@@ -114,6 +114,12 @@ namespace MedGas2024.Engine
                                 var types=new HashSet<ObjectId>();foreach(var id in sources){var e=tr.GetObject(id,OpenMode.ForRead) as Entity;if(e==null||!String.Equals(e.Layer,sourceLayer,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("đường nguồn đã đổi layer.");var type=Type(db,tr,e);if(type.IsNull||(trusted==null&&!SameLabel(Text(tr,type),row.Label)))throw new InvalidOperationException("đường nguồn có nét hoặc nhãn không khớp.");types.Add(type);}
                                 if(types.Count!=1)throw new InvalidOperationException("nhiều nét nguồn/scale khác nhau; hãy pick lại mẫu chính xác.");
                                 var target=types.Single();var first=(Entity)tr.GetObject(sources[0],OpenMode.ForRead);var color=ColorOf(tr,first);var weight=WeightOf(tr,first);
+                                foreach(var id in sources.Skip(1))
+                                {
+                                    var candidate=(Entity)tr.GetObject(id,OpenMode.ForRead);
+                                    if(!SameColor(color,ColorOf(tr,candidate))||weight!=WeightOf(tr,candidate))
+                                        throw new InvalidOperationException("ống cùng nhãn có màu hoặc lineweight khác nhau; hãy pick lại mẫu.");
+                                }
                                 string current=Text(tr,target);string renamed=!String.IsNullOrWhiteSpace(current)&&!SameLabel(current,row.Label)?current:null;
                                 if(target==old&&SameColor(color,pipe.Color)&&weight==pipe.LineWeight&&renamed==null){plan.Already++;continue;}
                                 plan.Changes.Add(new LegendPipeChange{Table=tid,Row=r,Column=c,Sample=sample,OldType=old,NewType=target,Label=row.Label,Layer=sourceLayer,Sources=sources,RowId=row.Id,NewLabel=renamed,NewColor=color,NewLineWeight=weight});
@@ -149,7 +155,7 @@ namespace MedGas2024.Engine
                     if(((LayerTableRecord)tr.GetObject(table.LayerId,OpenMode.ForRead)).IsLocked||table.Cells[change.Row,change.Column].BlockTableRecordId!=change.Sample)throw new InvalidOperationException("Bảng đã đổi sau xem trước; hãy kiểm tra lại.");
                     var sample=(BlockTableRecord)tr.GetObject(change.Sample,OpenMode.ForRead);var ids=sample.Cast<ObjectId>().ToArray();if(ids.Length!=1)throw new InvalidOperationException("Mẫu ống đã thay đổi; hãy kiểm tra lại.");var line=tr.GetObject(ids[0],OpenMode.ForRead) as Polyline;
                     if(line==null||Type(db,tr,line)!=change.OldType)throw new InvalidOperationException("Nét mẫu đã thay đổi; hãy kiểm tra lại.");
-                    foreach(var id in change.Sources){var e=tr.GetObject(id,OpenMode.ForRead) as Entity;if(e==null||Type(db,tr,e)!=change.NewType||!String.Equals(e.Layer,change.Layer,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Ống nguồn đã thay đổi; hãy kiểm tra lại.");}
+                    foreach(var id in change.Sources){var e=tr.GetObject(id,OpenMode.ForRead) as Entity;if(e==null||Type(db,tr,e)!=change.NewType||!SameColor(change.NewColor,ColorOf(tr,e))||change.NewLineWeight!=WeightOf(tr,e)||!String.Equals(e.Layer,change.Layer,StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Ống nguồn đã thay đổi; hãy kiểm tra lại.");}
                     bool restyle=change.NewType!=change.OldType||(change.NewColor!=null&&!SameColor(change.NewColor,line.Color))||line.LineWeight!=change.NewLineWeight;
                     ObjectId replacement=change.Sample;
                     if(restyle)

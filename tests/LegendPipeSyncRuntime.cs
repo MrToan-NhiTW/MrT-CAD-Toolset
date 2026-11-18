@@ -28,6 +28,24 @@ public static class LegendPipeSyncRuntime
             var s=new LegendSpec{DatabaseKey=LegendService.DatabaseKey(db),Groups=1,PipeLinetypeMultiplier=2,PipeWidthMultiplier=3};var ra=LegendService.Capture(db,new[]{a},true);ra.SampleScale=.8;var rb=LegendService.Capture(db,new[]{b},true);var legacy=LegendService.Capture(db,new[]{a},true);legacy.PipeSourceDatabaseKey=null;legacy.PipeSourceHandle=null;legacy.PipeSourceLayer=null;s.Rows.Add(ra);s.Rows.Add(rb);s.Rows.Add(legacy);s.Rows.Add(LegendService.Capture(db,new[]{other},false));
             var tableId=LegendService.Write(db,s,Point3d.Origin,Vector3d.ZAxis,Vector3d.XAxis,ObjectId.Null);ObjectId oldSymbol,oldMask;double width,height,scale,constant;
             using(var tr=db.TransactionManager.StartOpenCloseTransaction()){var t=(Table)tr.GetObject(tableId,OpenMode.ForRead);width=t.Width;height=t.Height;oldSymbol=t.Cells[5,0].BlockTableRecordId;var rec=(BlockTableRecord)tr.GetObject(t.Cells[2,0].BlockTableRecordId,OpenMode.ForRead);var pl=(Polyline)tr.GetObject(rec.Cast<ObjectId>().Single(),OpenMode.ForRead);scale=pl.LinetypeScale;constant=pl.ConstantWidth;var dict=(DBDictionary)tr.GetObject(t.ExtensionDictionary,OpenMode.ForRead);var x=(Xrecord)tr.GetObject(dict.GetAt("MRT_LEGEND_MASK_V1"),OpenMode.ForRead);using(var vals=x.Data)oldMask=(ObjectId)vals.AsArray()[0].Value;}
+            ObjectId alternate;
+            using(var tr=db.TransactionManager.StartTransaction())
+            {
+                var original=(Polyline)tr.GetObject(a,OpenMode.ForRead);
+                var copy=(Polyline)original.Clone();
+                copy.LineWeight=LineWeight.LineWeight211;
+                var space=(BlockTableRecord)tr.GetObject(original.OwnerId,OpenMode.ForWrite);
+                alternate=space.AppendEntity(copy);
+                tr.AddNewlyCreatedDBObject(copy,true);
+                tr.Commit();
+            }
+            var unclear=LegendPipeSync.Inspect(db,DensityService.Scan(db));
+            Check(unclear.Skipped.Count==1&&unclear.Skipped[0].Contains("lineweight"),"Only the unlinked row should report conflicting source appearance.");
+            using(var tr=db.TransactionManager.StartTransaction())
+            {
+                tr.GetObject(alternate,OpenMode.ForWrite).Erase();
+                tr.Commit();
+            }
             var before=DensityService.Scan(db);var keys=before.Where(x=>x.Selected).Select(x=>x.Key).ToList();var opt=new DensityOptions{PaperMode=true,PaperMm=25,Denominator=200};var plan=DensityService.Preview(db,keys,opt);Check(DensityService.Apply(db,plan,opt,keys)==1,"Density must change source layer.");
             var sync=LegendPipeSync.Inspect(db,before);Check(sync.Changes.Count==3&&sync.Skipped.Count==0,"Both source handles and legacy row must resolve mixed source scales.");Check(LegendPipeSync.Apply(db,sync)==3,"Three cells must update.");
             using(var tr=db.TransactionManager.StartOpenCloseTransaction()){

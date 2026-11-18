@@ -31,7 +31,9 @@ namespace MedGas2024.Plugin
                 var mode=Win.MessageBox.Show(plan.Summary(true)+"\r\n\r\nCó: Z=0 VÀ đổi LINE → polyline.\r\nKhông: chỉ đưa về Z=0, giữ LINE.\r\nHủy: không thay đổi.","Xem trước Z=0 + Polyline",Win.MessageBoxButtons.YesNoCancel,Win.MessageBoxIcon.Question);
                 if(mode==Win.DialogResult.Cancel)return;bool convert=mode==Win.DialogResult.Yes;
                 if(plan.Changes(convert)==0){Win.MessageBox.Show("Mọi đường đã ở Z=0; không có gì để đổi.","Mr.T Z=0 + Polyline");return;}
-                int count;using(var locked=doc.LockDocument()){var again=FlattenService.Inspect(doc.Database,ids);if(again.Changes(convert)!=plan.Changes(convert))throw new InvalidOperationException("Bản vẽ đã đổi sau xem trước; chạy lại MRTZ0PL.");count=FlattenService.Apply(doc.Database,again,convert);}
+                int count;using(var locked=doc.LockDocument()){var again=FlattenService.Inspect(doc.Database,ids);if(again.Changes(convert)!=plan.Changes(convert))throw new InvalidOperationException("Bản vẽ đã đổi sau xem trước; chạy lại MRTZ0PL.");Dictionary<ObjectId,ObjectId[]> replacements;
+                    count=FlattenService.Apply(doc.Database,again,convert,out replacements);
+                    IsolationHost.RecordSplit(doc,replacements);}
                 doc.Editor.Regen();foreach(var s in plan.Skipped)doc.Editor.WriteMessage("\nMr.T Z0 bỏ qua "+s);
                 doc.Editor.WriteMessage("\nMr.T: Đã xử lý "+count+" đường"+(convert?" (Z=0 + LINE→polyline)":" (Z=0)")+". Bỏ qua "+plan.Skipped.Count+". Dùng UNDO để hoàn tác; MRTJOIN để nối, MRTALIGNR để kiểm tra chiều chữ.\n");
             }
