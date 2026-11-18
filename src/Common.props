@@ -6,6 +6,8 @@
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <PlatformTarget>x64</PlatformTarget>
     <OutputPath>..\..\bin\</OutputPath>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <CodePage>65001</CodePage>
     <Optimize>true</Optimize>
     <LangVersion>5</LangVersion>
     <AutoCADPath Condition="'$(AutoCADPath)'==''">C:\Program Files\Autodesk\AutoCAD 2024</AutoCADPath>
@@ -13,6 +15,10 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Runtime.Serialization" />
     <Compile Include="..\TargetFramework.cs"><Link>Properties\TargetFramework.cs</Link></Compile>
     <Compile Include="..\AssemblyInfo.cs"><Link>Properties\AssemblyInfo.cs</Link></Compile>

@@ -5,16 +5,12 @@
     <AssemblyName>MedGas2024.Engine</AssemblyName><RootNamespace>MedGas2024.Engine</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="SyncService.cs" /><Compile Include="DrawingService.cs" /><Compile Include="SafeCreation.cs" /><Compile Include="ScaleService.cs" /><Compile Include="DirectionService.cs" /><Compile Include="BatchService.cs" /><Compile Include="LabelService.cs" /><Compile Include="PipeSelection.cs" />
     <Reference Include="AcCoreMgd"><HintPath>$(AutoCADPath)\AcCoreMgd.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="AcDbMgd"><HintPath>$(AutoCADPath)\AcDbMgd.dll</HintPath><Private>False</Private></Reference>
-    <ProjectReference Include="..\Core\MedGas2024.Core.csproj"><Project>{40EEB159-2D3C-4E82-8111-3079D2640601}<ItemGroup><Compile Include="LegacyMapping.cs" /></ItemGroup>
-</Project><Name>MedGas2024.Core</Name></ProjectReference>
+    <ProjectReference Include="..\Core\MedGas2024.Core.csproj"><Project>{40EEB159-2D3C-4E82-8111-3079D2640601}</Project><Name>MedGas2024.Core</Name></ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <ItemGroup><Compile Include="IsolationLayers.cs" /></ItemGroup>
-<ItemGroup><Compile Include="FamilyService.cs" /></ItemGroup>
-<ItemGroup><Compile Include="LegendService.cs" /></ItemGroup>
-<ItemGroup><Compile Include="LegacyRNames.cs" /></ItemGroup>
-<ItemGroup><Compile Include="LegacyMapping.cs" /></ItemGroup>
 </Project>

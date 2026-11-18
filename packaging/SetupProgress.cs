@@ -12,7 +12,7 @@ namespace MrT.CAD.Toolset.Setup
         public int Result=1;
         public SetupProgress(Func<int> operation)
         {
-            action=operation;Text="Mr.T CAD tool set 2.0.1.11 — Cài đặt";ClientSize=new Size(610,240);StartPosition=FormStartPosition.CenterScreen;FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
+            action=operation;Text="Mr.T CAD tool set 2.0.2.0 — Cài đặt";ClientSize=new Size(610,240);StartPosition=FormStartPosition.CenterScreen;FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
             status.SetBounds(22,18,565,40);status.Font=new Font(Font.FontFamily,12,FontStyle.Bold);status.Text="Đang chuẩn bị và cài đặt…";
             times.SetBounds(22,68,565,46);details.SetBounds(22,120,565,60);details.Text="Làm theo cửa sổ Windows Installer nếu được yêu cầu. Không đóng cửa sổ này khi đang cài.";
             close.SetBounds(470,190,115,30);close.Text="Đóng";close.Enabled=false;close.Click+=(s,e)=>Close();Controls.AddRange(new Control[]{status,times,details,close});

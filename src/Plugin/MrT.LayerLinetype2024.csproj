@@ -5,7 +5,7 @@
     <AssemblyName>MrT.CAD.Toolset</AssemblyName><RootNamespace>MedGas2024.Plugin</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Commands.cs" /><Compile Include="RibbonHost.cs" /><Compile Include="RibbonFactory.cs" /><Compile Include="RibbonCommandHandler.cs" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" /><Reference Include="PresentationFramework" /><Reference Include="PresentationCore" /><Reference Include="WindowsBase" /><Reference Include="System.Xaml" />
     <Reference Include="AcCoreMgd"><HintPath>$(AutoCADPath)\AcCoreMgd.dll</HintPath><Private>False</Private></Reference>
     <Reference Include="AcDbMgd"><HintPath>$(AutoCADPath)\AcDbMgd.dll</HintPath><Private>False</Private></Reference>
@@ -15,7 +15,8 @@
     <ProjectReference Include="..\UI\MedGas2024.UI.csproj"><Project>{40EEB159-2D3C-4E82-8111-3079D2640603}</Project><Name>MedGas2024.UI</Name></ProjectReference>
     <Content Include="..\..\profiles\mrt-default.json"><Link>default-profile.json</Link><TargetPath>default-profile.json</TargetPath><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="*.cs" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <ItemGroup><Compile Include="IsolationHost.cs" /></ItemGroup>
-<ItemGroup><Compile Include="LegendCommands.cs" /></ItemGroup>
 </Project>

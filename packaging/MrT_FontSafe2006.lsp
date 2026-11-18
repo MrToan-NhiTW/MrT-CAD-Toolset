@@ -165,9 +165,8 @@
             ii (if mt (A2FLT:InlineABCInfo raw) '(nil nil))
             abc (or (car si) (car ii)))
       (cond
-        ;; Auto: text in an ABC/TCVN3 style is converted. Only a real Unicode letter
-        ;; (code > 255) in that style makes it ambiguous: TCVN3 never produces one.
-        ((and abc (A2F2:WideP raw)) (A2F2:Hold obj raw))
+        ;; The style alone cannot disambiguate Latin-1 Vietnamese, e.g. PHÒNG.
+        ((and abc (A2F2:AmbiguousP raw)) (A2F2:Hold obj raw))
         (abc
           (A2F2:AddPlan obj raw sn
             (A2F2:ApplyCase (A2FLT:ConvertString raw (car si) (cadr si) mt nil) mt)
@@ -211,7 +210,7 @@
   (if (and (= nm "AcDbAttributeDefinition")
            (setq p (vl-catch-all-apply 'vla-get-PromptString (list obj)))
            (not (vl-catch-all-error-p p)) (/= p "")
-           (not (A2F2:WideP p))
+           (not (A2F2:AmbiguousP p))
            (or (car si) (>= (A2F2:Tcvn3Score p) 2)))
     (progn (setq n (A2FLT:ConvertString p T nil nil nil)) (if (/= n p) (cons p n)))))
 
