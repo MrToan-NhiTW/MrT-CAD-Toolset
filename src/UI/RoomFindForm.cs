@@ -32,7 +32,10 @@ namespace MedGas2024.UI
             var use=new Button{Text="Gắn ID vào chữ đã chọn",AutoSize=true};
             var zoom=new Button{Text="Phóng tới chữ và chọn điểm…",AutoSize=true};
             var cancel=new Button{Text="Hủy",AutoSize=true,DialogResult=DialogResult.Cancel};
-            actions.Controls.AddRange(new Control[]{use,zoom,cancel});root.Controls.Add(actions,0,3);CancelButton=cancel;
+            var free=new Button{Text="Chọn điểm bất kỳ…",AutoSize=true};
+            free.Click+=delegate{PickPoint=true;SelectedHandle=null;DialogResult=DialogResult.OK;};
+            var all=new Button{Text="Hiện tất cả chữ",AutoSize=true};all.Click+=delegate{query.Clear();};
+            actions.Controls.AddRange(new Control[]{use,zoom,free,all,cancel});root.Controls.Add(actions,0,3);CancelButton=cancel;
             Func<RoomReviewRow> selected=()=>grid.CurrentRow==null?null:grid.CurrentRow.DataBoundItem as RoomReviewRow;
             Action enable=()=>{var hit=selected();zoom.Enabled=hit!=null;use.Enabled=hit!=null&&String.IsNullOrEmpty(hit.Status);};
             Action refresh=()=>{
