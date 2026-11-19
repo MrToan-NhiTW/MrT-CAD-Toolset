@@ -1,5 +1,9 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
+using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.Geometry;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using MedGas2024.Core;
@@ -10,15 +14,34 @@ namespace MedGas2024.Plugin
 {
     public sealed partial class Commands
     {
+        static void ZoomRoom(Document doc,ObjectId id)
+        {
+            Extents3d bounds;
+            using(var tr=doc.Database.TransactionManager.StartOpenCloseTransaction())
+                bounds=((Entity)tr.GetObject(id,OpenMode.ForRead)).GeometricExtents;
+            using(var view=doc.Editor.GetCurrentView())
+            {
+                var toWorld=Matrix3d.PlaneToWorld(view.ViewDirection);
+                toWorld=Matrix3d.Displacement(view.Target-Point3d.Origin)*toWorld;
+                toWorld=Matrix3d.Rotation(-view.ViewTwist,view.ViewDirection,view.Target)*toWorld;
+                bounds.TransformBy(toWorld.Inverse());
+                double aspect=view.Width/view.Height;
+                var size=bounds.MaxPoint-bounds.MinPoint;
+                double h=Math.Max(Math.Max(size.Y,size.X/aspect)*3,1);
+                view.Height=h;view.Width=h*aspect;
+                view.CenterPoint=new Point2d((bounds.MinPoint.X+bounds.MaxPoint.X)/2,(bounds.MinPoint.Y+bounds.MaxPoint.Y)/2);
+                doc.Editor.SetCurrentView(view);
+            }
+        }
         [CommandMethod("MRTROOMS",CommandFlags.Modal)]
         public void Rooms()
         {
             var doc=AcApp.DocumentManager.MdiActiveDocument;if(doc==null)return;RoomForm form=null;
             try{
-                Func<RoomEntry,double,bool,bool> place=(row,height,mode)=>{
+                Func<RoomEntry,double,bool,string,string,bool> place=(row,height,mode,layer,style)=>{
                     using(var interaction=doc.Editor.StartUserInteraction(form)){
                         var result=doc.Editor.GetPoint("\nChọn tâm tên phòng ["+row.Id+"]: ");if(result.Status!=PromptStatus.OK)return false;
-                        var cs=doc.Editor.CurrentUserCoordinateSystem;var axes=cs.CoordinateSystem3d;using(var locked=doc.LockDocument()){var id=RoomService.Place(doc.Database,row,result.Value.TransformBy(cs),axes.Zaxis,axes.Xaxis,height,mode);doc.Editor.WriteMessage("\nMr.T phòng: đã gắn ID "+row.Id+" ("+id.Handle+").");}return true;
+                        var cs=doc.Editor.CurrentUserCoordinateSystem;var axes=cs.CoordinateSystem3d;using(var locked=doc.LockDocument()){var id=RoomService.Place(doc.Database,row,result.Value.TransformBy(cs),axes.Zaxis,axes.Xaxis,height,mode,layer,style);doc.Editor.WriteMessage("\nMr.T phòng: đã gắn ID "+row.Id+" ("+id.Handle+").");}return true;
                     }
                 };
                 Action<RoomCatalog,bool> update=(catalog,mode)=>{
@@ -27,7 +50,62 @@ namespace MedGas2024.Plugin
                     string summary="Phạm vi: các phòng Mr.T trực tiếp trong Model và Layout; không quét block/Xref. Nguồn: "+(catalog==null?"tên đã lưu trong DWG":"danh sách Excel vừa nạp")+". Hợp lệ: "+ready+"; bỏ qua: "+skipped+". "+(catalog!=null&&catalog.Problems.Count>0?"Excel có "+catalog.Problems.Count+" cảnh báo; xem lại trước khi áp dụng.":"");
                     using(var review=new RoomReviewForm(rows,summary)){if(AcApp.ShowModalDialog(review)!=System.Windows.Forms.DialogResult.OK)return;using(var locked=doc.LockDocument()){int n=RoomService.Apply(doc.Database,plan);doc.Editor.Regen();doc.Editor.WriteMessage("\nMr.T phòng: đã cập nhật "+n+" đối tượng; bỏ qua "+skipped+". UNDO để hoàn tác.\n");System.Windows.Forms.MessageBox.Show("Đã cập nhật "+n+" đối tượng; bỏ qua "+skipped+". Dùng UNDO nếu cần.","Mr.T tên phòng");}}
                 };
-                using(form=new RoomForm(place,update))AcApp.ShowModalDialog(form);
+                Func<RoomEntry,double,bool,string,string,string,bool> find=(row,height,mode,source,target,style)=>{
+                    var space=doc.Database.CurrentSpaceId;
+                    var hits=RoomService.ScanNames(doc.Database,space,source)
+                        .Where(h=>source==null||String.Equals(h.Layer,source,StringComparison.OrdinalIgnoreCase)).ToList();
+                    var rows=hits.Select(h=>new RoomReviewRow{Handle=h.Id.Handle.ToString(),Current=h.Text,Id=h.Layer,Status=h.Status}).ToList();
+                    using(var dialog=new RoomFindForm(row,rows))
+                    {
+                        if(AcApp.ShowModalDialog(dialog)!=System.Windows.Forms.DialogResult.OK)return false;
+                        var hit=hits.Single(h=>h.Id.Handle.ToString()==dialog.SelectedHandle);
+                        if(dialog.PickPoint)
+                        {
+                            using(var interaction=doc.Editor.StartUserInteraction(form))
+                            {
+                                ZoomRoom(doc,hit.Id);
+                                var point=doc.Editor.GetPoint("\\nChọn điểm gắn tên phòng ["+row.Id+"] (Esc để quay lại): ");
+                                if(point.Status!=PromptStatus.OK)return false;
+                                var cs=doc.Editor.CurrentUserCoordinateSystem;
+                                using(doc.LockDocument())
+                                    RoomService.Place(doc.Database,row,point.Value.TransformBy(cs),cs.CoordinateSystem3d.Zaxis,cs.CoordinateSystem3d.Xaxis,height,mode,target,style);
+                            }
+                        }
+                        else
+                        {
+                            hit.Entry=row;
+                            using(doc.LockDocument())RoomService.Adopt(doc.Database,space,new[]{hit},mode,target,style);
+                        }
+                        doc.Editor.Regen();return true;
+                    }
+                };
+                Action<RoomCatalog,bool,string,string,string> scan=(catalog,mode,source,target,style)=>{
+                    var db=doc.Database;var space=db.CurrentSpaceId;
+                    Func<List<RoomHit>> inspect=()=>RoomNameMatcher.Match(RoomService.ScanNames(db,space,source),catalog,mode);
+                    var preview=inspect();
+                    var rows=preview.Where(h=>h.Tag==null||h.Layer==source||catalog.Find(h.Tag)!=null).Select(h=>new RoomReviewRow{
+                        Handle=h.Id.IsNull?"":h.Id.Handle.ToString(),Id=h.Entry==null?h.Tag:h.Entry.Id,Current=h.Text,
+                        After=h.Ready?RoomRules.Desired(h.Entry,mode):"",Status=h.Status}).ToList();
+                    var ready=preview.Where(h=>h.Ready).ToDictionary(h=>h.Id);
+                    string summary="Không gian hiện tại · Layer chữ cũ: "+source+" · Layer đích: "+target+" · Kiểu chữ: "+style+
+                        ". Có "+ready.Count+" chữ khớp duy nhất. Gắn trực tiếp vào chữ, giữ vị trí và độ cao.";
+                    using(var review=new RoomReviewForm(rows,summary))
+                    {
+                        if(AcApp.ShowModalDialog(review)!=System.Windows.Forms.DialogResult.OK)return;
+                        using(doc.LockDocument())
+                        {
+                            var current=inspect().Where(h=>h.Ready).ToList();
+                            if(space!=db.CurrentSpaceId||current.Count!=ready.Count||current.Any(h=>!ready.ContainsKey(h.Id)||
+                                h.Text!=ready[h.Id].Text||h.Entry.Id!=ready[h.Id].Entry.Id))
+                                throw new InvalidOperationException("Danh sách vị trí đã đổi; hãy rà soát lại.");
+                            int n=RoomService.Adopt(db,space,current,mode,target,style);
+                            doc.Editor.Regen();doc.Editor.WriteMessage("\\nMr.T: Đã gắn "+n+" tên phòng. UNDO để hoàn tác.");
+                            System.Windows.Forms.MessageBox.Show("Đã gắn "+n+" tên phòng.","Mr.T tên phòng");
+                        }
+                    }
+                };
+                using(form=new RoomForm(place,update,RoomService.Layers(doc.Database),RoomService.Styles(doc.Database),find,scan))
+                    AcApp.ShowModalDialog(form);
             }catch(System.Exception ex){Report(doc,ex);}
         }
     }

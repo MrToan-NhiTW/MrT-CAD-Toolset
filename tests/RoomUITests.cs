@@ -14,6 +14,8 @@ public static class RoomUITests
         using(var f=new RoomForm((r,h,m)=>true,(c,m)=>{})){
             f.GetType().GetField("book",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(f,book);var sheet=(ComboBox)Field(f,"sheet");foreach(var s in book.Sheets)sheet.Items.Add(s.Name);sheet.SelectedIndex=0;
             Check(((ComboBox)Field(f,"oldCol")).SelectedIndex==0&&((ComboBox)Field(f,"newCol")).SelectedIndex==1,"Column selectors detect Vietnamese headers");
+            Check(((ComboBox)Field(f,"oldCol")).Text.Contains("Cột A")&&((ComboBox)Field(f,"oldCol")).Text.Contains("PHÒNG KHÁM"),"Column choices show a real Excel example");
+            Check(((ComboBox)Field(f,"targetLayer")).Text==RoomCatalog.DefaultLayer&&((ComboBox)Field(f,"targetStyle")).Text==RoomCatalog.DefaultStyle,"Default layer and style are explicit");
             f.GetType().GetField("catalog",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(f,catalog);f.GetType().GetMethod("RefreshRows",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(f,null);var grid=(DataGridView)Field(f,"grid");
             Check(((ICollection)grid.DataSource).Count==2&&TypeDescriptor.GetProperties(typeof(RoomEntry))["OldName"]!=null,"Catalog binds rows through accessible properties");
             var search=(TextBox)Field(f,"search");search.Text="001";Check(((ICollection)grid.DataSource).Count==1,"Quick search filters room IDs");

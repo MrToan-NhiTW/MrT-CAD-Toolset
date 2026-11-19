@@ -1,0 +1,48 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using MedGas2024.Core;
+
+namespace MedGas2024.UI
+{
+    public sealed class RoomFindForm:Form
+    {
+        public string SelectedHandle { get; private set; }
+        public bool PickPoint { get; private set; }
+
+        public RoomFindForm(RoomEntry entry,List<RoomReviewRow> candidates)
+        {
+            UiTheme.Attach(this);
+            Text="Tìm vị trí trong DWG — "+entry.Id;
+            Size=new Size(880,540);MinimumSize=new Size(640,400);StartPosition=FormStartPosition.CenterParent;
+            var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(10),ColumnCount=1,RowCount=4};
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.AutoSize));Controls.Add(root);
+            root.Controls.Add(new Label{AutoSize=true,Text="Tìm theo một phần nội dung chữ trong bản vẽ. Phòng đang gắn: "+entry.OldName},0,0);
+            var query=new TextBox{Dock=DockStyle.Fill,Text=entry.OldName};root.Controls.Add(query,0,1);
+            var grid=new DataGridView{Dock=DockStyle.Fill,AutoGenerateColumns=false,ReadOnly=true,AllowUserToAddRows=false,
+                MultiSelect=false,SelectionMode=DataGridViewSelectionMode.FullRowSelect,RowHeadersVisible=false};
+            UiStyle.Grid(grid);
+            foreach(var c in new[]{new[]{"Current","Chữ trên bản vẽ","260"},new[]{"Id","Layer","160"},new[]{"Handle","Handle","85"},new[]{"Status","Trạng thái","210"}})
+                grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName=c[0],HeaderText=c[1],Width=Int32.Parse(c[2])});
+            root.Controls.Add(grid,0,2);
+            var actions=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoSize=true};
+            var use=new Button{Text="Gắn ID vào chữ đã chọn",AutoSize=true};
+            var zoom=new Button{Text="Phóng tới chữ và chọn điểm…",AutoSize=true};
+            var cancel=new Button{Text="Hủy",AutoSize=true,DialogResult=DialogResult.Cancel};
+            actions.Controls.AddRange(new Control[]{use,zoom,cancel});root.Controls.Add(actions,0,3);CancelButton=cancel;
+            Func<RoomReviewRow> selected=()=>grid.CurrentRow==null?null:grid.CurrentRow.DataBoundItem as RoomReviewRow;
+            Action enable=()=>{var hit=selected();zoom.Enabled=hit!=null;use.Enabled=hit!=null&&String.IsNullOrEmpty(hit.Status);};
+            Action refresh=()=>{
+                string key=RoomCatalog.MatchName(query.Text);
+                grid.DataSource=candidates.Where(h=>RoomCatalog.MatchName(h.Current).IndexOf(key,StringComparison.OrdinalIgnoreCase)>=0).ToList();
+                enable();
+            };
+            Action<bool> finish=point=>{var hit=selected();if(hit==null)return;SelectedHandle=hit.Handle;PickPoint=point;DialogResult=DialogResult.OK;};
+            query.TextChanged+=delegate{refresh();};grid.SelectionChanged+=delegate{enable();};
+            use.Click+=delegate{finish(false);};zoom.Click+=delegate{finish(true);};Shown+=delegate{refresh();query.SelectAll();query.Focus();};
+        }
+    }
+}

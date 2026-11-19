@@ -1,3 +1,11 @@
+# Bàn giao 2.0.2.1
+
+Nhánh **feat/rooms-2.0.2.1** tiếp nối **fix/2.0.2.0**. Bộ cài offline ở **releases/MrT_CAD_Toolset_2.0.2.1_Setup.exe**.
+
+MRTROOMS cho chọn cột Excel có tiêu đề và ví dụ, layer chữ cũ, layer đích và kiểu chữ. Mặc định đích là **Mr.T Tên phòng** và **Mr.T Arial**. Tìm thủ công hỗ trợ nhận chữ có sẵn hoặc phóng tới chữ để đặt điểm. Rà soát theo layer đối chiếu TEXT/MTEXT trực tiếp trong Model hoặc Layout hiện hành, ghi nhận tên thiếu/trùng, chỉ nhận ứng viên duy nhất sau khi xem trước. Đối tượng đã nhận giữ handle, vị trí và độ cao. ID vẫn dùng khi cập nhật lại từ Excel.
+
+Đã build và kiểm thử đọc Excel, giao diện, đối chiếu tên trùng và ID đã gắn. Đã kiểm tra bộ cài nhận bản 2.0.2.0 và khớp 135 tệp trong MSI. SHA-256 EXE **F43FC0B25F50517A861DD55CCA3384E65B908791DD4B3A74D5CCED418CF71659**. Ca DWG MRTROOMS2016TEST đã biên dịch. Core Console trên máy build dừng khi mở profile trước khi chạy lệnh; cần kiểm tra trên bản sao DWG trong CAD 2024.
+
 # Bàn giao 2.0.2.0
 
 Nhánh **fix/2.0.2.0** kế thừa 2.0.1.11. Bộ cài thử ở **releases/MrT_CAD_Toolset_2.0.2.0_Setup.exe** theo yêu cầu đồng bộ hai máy.

@@ -22,7 +22,7 @@ namespace MedGas2024.Plugin
         public void Initialize()
         {
             var doc=AcApp.DocumentManager.MdiActiveDocument;
-            if(doc!=null) doc.Editor.WriteMessage("\nMr.T CAD tool set 2.0.2.0 đã nạp. Gõ MRTTOOLS hoặc chọn tab Mr.T CAD tool set.\n");RibbonHost.Start();IsolationHost.Start();
+            if(doc!=null) doc.Editor.WriteMessage("\nMr.T CAD tool set 2.0.2.1 đã nạp. Gõ MRTTOOLS hoặc chọn tab Mr.T CAD tool set.\n");RibbonHost.Start();IsolationHost.Start();
         }
         public void Terminate() { IsolationHost.Stop();RibbonHost.Stop(); }
         
