@@ -23,7 +23,7 @@ namespace MedGas2024.Core
         public List<RoomEntry> Splits;
         // Plain TEXT/MTEXT directly in the space (can be replaced); false for attributes.
         public bool Direct;
-        // A 2.0.2.5 MTEXT label made for block text; with room blocks it is replaced, not counted as attached.
+        // A 2.0.2.3 MTEXT label made for block text; with room blocks it is replaced, not counted as attached.
         public bool LegacyLabel;
         public RoomNameMatch Supersedes;
         // Needs a human check (split assigned by position, split stacked, repeated code): drawn in the review colour.
@@ -36,7 +36,7 @@ namespace MedGas2024.Core
     public sealed class RoomMatchOptions
     {
         public bool CreateLabels,AllowRepeats;
-        // Room blocks (2.0.2.5): every match becomes a Mr.T_PHONG block; direct old text is replaced.
+        // Room blocks (2.0.2.4): every match becomes a Mr.T_PHONG block; direct old text is replaced.
         public bool Blocks,ReplaceOld;
         // Room blocks: also make a block, keeping the old name, for text with no usable Excel row (flagged for review).
         public bool KeepUnmatched;

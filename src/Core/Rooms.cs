@@ -17,7 +17,7 @@ namespace MedGas2024.Core
         [DataMember] public bool ShowingNew;
         // Address (INSERT handles/text handle) of the block text a separate label was created for.
         [DataMember(EmitDefaultValue=false)] public string Source;
-        // Room block labels (2.0.2.5): display in upper case, the frame polyline handle
+        // Room block labels (2.0.2.4): display in upper case, the frame polyline handle
         // and its shape so switching names keeps the same look.
         [DataMember(EmitDefaultValue=false)] public bool Upper;
         [DataMember(EmitDefaultValue=false)] public string Frame,FrameShape,Status;

@@ -37,7 +37,7 @@ namespace MedGas2024.UI
             Action<RoomCatalog,bool,string,RoomLabelStyle,RoomSettings> scan,RoomSettings remembered=null,Action<RoomSettings> store=null)
         {
             UiTheme.Attach(this);settings=remembered??new RoomSettings();save=store;
-            Text="Mr.T Tên phòng | 2.0.2.5";Font=UiStyle.Body();Size=new Size(1240,840);
+            Text="Mr.T Tên phòng | 2.0.2.6";Font=UiStyle.Body();Size=new Size(1240,840);
             MinimumSize=new Size(1000,720);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=9};
             foreach(int pixels in new[]{36,39,80,-1,46,74,46,46,46})

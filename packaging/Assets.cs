@@ -5,7 +5,7 @@ using System.Drawing.Imaging;
 using System.IO;
 public static class Assets
 {
-    static readonly string[] Keys={"mrttablemask","mrtfont","mrtfontall","mrtfontcheck","mrtjoin","mrtz0","mrtz0scan","mrtbreak","mrtaliases","mrttools","mrtpipe","mrtscale","mrtr0","mrtsel","mrtiso","mrtuniso","mrthelp","mrtsellayer","mrtalignr","mrtview","mrtisoadd","mrtblocklay","mrtblockmerge","mrtlegend","mrtlegedit","mrtlegsync","mrtrooms","mrtdensity","mrtz0pl"};
+    static readonly string[] Keys={"mrttablemask","mrtfont","mrtfontall","mrtfontcheck","mrtjoin","mrtz0","mrtz0scan","mrtbreak","mrtaliases","mrttools","mrtpipe","mrtscale","mrtr0","mrtsel","mrtiso","mrtuniso","mrthelp","mrtsellayer","mrtalignr","mrtview","mrtisoadd","mrtblocklay","mrtblockmerge","mrtlegend","mrtlegedit","mrtlegsync","mrtrooms","mrtdensity","mrtz0pl","mrtroomlist","mrtroominfo"};
     static Color Blue(bool light){return ColorTranslator.FromHtml(light?"#0067A4":"#67C5FF");} static Color Green(bool light){return ColorTranslator.FromHtml(light?"#007A4A":"#74DDA5");} static Color Yellow(bool light){return ColorTranslator.FromHtml(light?"#996300":"#FFCC67");} static Color Purple(bool light){return ColorTranslator.FromHtml(light?"#71419B":"#D4A6FF");} static Color Orange(bool light){return ColorTranslator.FromHtml(light?"#A85100":"#FFB77A");}
     static void Line(Graphics g,Color c,float width,params float[] a){using(var p=new Pen(c,width){StartCap=LineCap.Round,EndCap=LineCap.Round,LineJoin=LineJoin.Round})for(int i=0;i+3<a.Length;i+=2)g.DrawLine(p,a[i],a[i+1],a[i+2],a[i+3]);}
     static void Box(Graphics g,Color c,float x,float y,float w,float h,float thickness=1.3f){using(var p=new Pen(c,thickness))g.DrawRectangle(p,x,y,w,h);}
@@ -46,6 +46,8 @@ public static class Assets
             Line(g,yellow,1.4f,9,6,9,13);Line(g,yellow,1.4f,23,6,23,13);Arrow(g,yellow,16,9.5f,6.5f,0);Arrow(g,yellow,16,9.5f,-6.5f,0);break;
         // Slanted 3D line dropped onto the plane and becoming one polyline.
         case "mrtz0pl":Line(g,ink,1.3f,3,27,29,27);Line(g,orange,1.8f,4,6,14,13);Arrow(g,orange,9,12,0,9);Line(g,green,2.6f,4,23,15,23,24,17);Circle(g,green,15,23,1.8f,true);break;
+        case "mrtroomlist":Box(g,ink,3,4,26,24);for(int i=0;i<3;i++){Circle(g,orange,8,10+i*7,1.6f,true);Line(g,ink,1.6f,12,10+i*7,25,10+i*7);}break;
+        case "mrtroominfo":using(var p=new Pen(ink,1.6f)){g.DrawArc(p,4,6,10,10,90,180);g.DrawArc(p,18,6,10,10,270,180);g.DrawLine(p,9,6,23,6);g.DrawLine(p,9,16,23,16);}Circle(g,blue,22,23,6.5f,true);Text(g,light?Color.White:Color.FromArgb(255,33,43,54),"i",19.6f,16.5f,11);break;
         case "mrtrooms":Box(g,ink,4,5,24,22);Line(g,orange,2,9,12,23,12);Line(g,orange,2,9,17,23,17);Line(g,ink,1.5f,9,22,18,22);break;
         }
     }

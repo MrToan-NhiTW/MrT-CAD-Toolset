@@ -27,7 +27,7 @@ public static class RoomRulesTests
         Check(direct.Ready&&direct.Action==RoomNameMatcher.ActionReplace,"With room blocks a direct old text is replaced");
         var place=Shared("520","30/1");var oldLabel=new RoomNameMatch{Text="620",Tag="520",Linked="30/1",LegacyLabel=true,Blocked="Đã gắn ID"};
         RoomNameMatcher.Match(new[]{place,oldLabel},catalog,true,new RoomMatchOptions{Blocks=true});
-        Check(place.Ready&&place.Supersedes==oldLabel&&place.Action==RoomNameMatcher.ActionUpgrade,"A 2.0.2.5 MTEXT label is upgraded to a block instead of blocking its room");
+        Check(place.Ready&&place.Supersedes==oldLabel&&place.Action==RoomNameMatcher.ActionUpgrade,"A 2.0.2.3 MTEXT label is upgraded to a block instead of blocking its room");
         RoomNameMatcher.Match(new[]{place,oldLabel},catalog,true,on);
         Check(!place.Ready&&place.Status.StartsWith("Đã có nhãn"),"Without room blocks the old label still counts");
         var blocks=new RoomMatchOptions{Blocks=true,CreateLabels=true};

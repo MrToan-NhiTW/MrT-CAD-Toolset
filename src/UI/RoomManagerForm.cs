@@ -31,7 +31,7 @@ namespace MedGas2024.UI
         public RoomManagerForm(List<RoomBlockInfo> rows,IEnumerable<RoomBlockInfo> fromDrawing,string note)
         {
             UiTheme.Attach(this);Rows=rows;original=fromDrawing.ToDictionary(r=>r.Handle,r=>r.Copy(),StringComparer.OrdinalIgnoreCase);
-            Text="Mr.T Quản lý phòng | 2.0.2.5";Font=UiStyle.Body();Size=new Size(1360,800);MinimumSize=new Size(1000,600);StartPosition=FormStartPosition.CenterParent;
+            Text="Mr.T Quản lý phòng | 2.0.2.6";Font=UiStyle.Body();Size=new Size(1360,800);MinimumSize=new Size(1000,600);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=6};
             foreach(int px in new[]{36,40,-1,74,46,30})root.RowStyles.Add(px<0?new RowStyle(SizeType.Percent,100):new RowStyle(SizeType.Absolute,px));
             Controls.Add(root);

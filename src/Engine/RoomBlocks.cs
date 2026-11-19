@@ -7,7 +7,7 @@ using MedGas2024.Core;
 
 namespace MedGas2024.Engine
 {
-    // Room labels as a block with attributes (2.0.2.5): the visible name plus ID,
+    // Room labels as a block with attributes (2.0.2.4): the visible name plus ID,
     // old name, new name, status and a free note, so the data shows in Properties,
     // EATTEDIT and DATAEXTRACTION. A rounded frame polyline on the same layer is
     // grouped with the block and redrawn when the name changes.

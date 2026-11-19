@@ -184,7 +184,7 @@ public static class RoomNativeRuntime
         var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead);
         return space.Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as BlockReference).Where(b=>b!=null&&!b.IsErased&&((BlockTableRecord)tr.GetObject(b.BlockTableRecord,OpenMode.ForRead)).Name==RoomService.RoomBlockName).ToList();
     }
-    // 2.0.2.5: room blocks with attributes, rounded frame, new layer, replace direct text, split rooms.
+    // 2.0.2.4: room blocks with attributes, rounded frame, new layer, replace direct text, split rooms.
     static void RoomBlockCase(Database db,List<string> output)
     {
         const string source="ROOM_OLD_BLOCKS";const string layer="Mr.T Phòng mới thử";
@@ -209,7 +209,7 @@ public static class RoomNativeRuntime
             new RoomEntry{Id="602",OldName="602",NewName="Kho dịch truyền",ExcelRow=3},new RoomEntry{Id="602",OldName="602",NewName="Kho huyết thanh",ExcelRow=4},
             new RoomEntry{Id="603",OldName="603",NewName="Phòng trực",ExcelRow=5},
             new RoomEntry{Id="604",OldName="604",NewName="Phòng A",ExcelRow=6},new RoomEntry{Id="604",OldName="604",NewName="Phòng B",ExcelRow=7}});
-        // A 2.0.2.5 MTEXT label already made for 603 must become a block, not block 603.
+        // A 2.0.2.3 MTEXT label already made for 603 must become a block, not block 603.
         var old603=RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,source),catalog,true,new RoomMatchOptions{CreateLabels=true}).Single(h=>h.Text=="603"&&h.Ready);
         RoomService.ApplyMatches(db,db.CurrentSpaceId,new[]{old603},true,RoomCatalog.DefaultLayer,RoomCatalog.DefaultStyle,false,null);
         var legacyLabel=old603.Label;

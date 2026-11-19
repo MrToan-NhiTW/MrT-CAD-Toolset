@@ -1,3 +1,11 @@
+# Bàn giao 2.0.2.6
+
+Cùng nhánh PR #7. Bộ cài **releases/MrT_CAD_Toolset_2.0.2.6_Setup.exe**, ProductCode `{F1654D98-85C1-4B31-869F-35EE84DF4B47}`, SHA-256 **F3756D6EF1C2143807CA2972EE14E86A20D1222C0C18837A9F847E4ED7662D25**.
+
+- Ribbon, nhóm **Bảng & Phòng**: thêm hai nút nhỏ dưới "Tên phòng cũ / mới": **Quản lý phòng** (`MRTROOMLIST`) và **Xem ID phòng** (`MRTROOMINFO`), có icon `mrtroomlist`/`mrtroominfo` (packaging/Assets.cs), cho phép trong `RibbonCommandHandler`, thêm vào danh sách alias.
+- `tests/RibbonPlacement2005.cs` cập nhật; chạy tay (csc + AdWindows) PASS. Build/package/test-package 628 PASS / 0 FAIL; native PASS.
+- Lưu ý khi nâng phiên bản: thay chuỗi phiên bản bằng tìm-thay toàn kho sẽ đổi cả số phiên bản trong chú thích mã; đã trả lại các chú thích về đúng 2.0.2.3/2.0.2.4/2.0.2.5.
+
 # Bàn giao 2.0.2.5
 
 Cùng nhánh **fix/rooms-numeric-batch-2.0.2.3** (PR #7). Bộ cài **releases/MrT_CAD_Toolset_2.0.2.5_Setup.exe**, ProductCode `{27257F69-A7CC-412B-87C9-FCAF5854E18C}`, SHA-256 **687EF1C86EE3B34769659F021A1F7B3A776B43614430D3DD7BA610F87EDCE94E**.
