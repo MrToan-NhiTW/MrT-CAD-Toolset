@@ -1,3 +1,16 @@
+# Bàn giao 2.0.2.4
+
+Tiếp tục trên nhánh **fix/rooms-numeric-batch-2.0.2.3** (PR #7). Bộ cài **releases/MrT_CAD_Toolset_2.0.2.4_Setup.exe**, ProductCode `{C8EB58E7-6BC6-4F8D-8CCA-A8B71D500D91}`, SHA-256 **53AAE73A7906C4EC2B6A5F3C27A120D0A5D5F4ACAC0271A4D5EEA116CBD9E955**.
+
+Theo góp ý của người dùng sau khi thử 2.0.2.3:
+- **Block Mr.T_PHONG** (`src/Engine/RoomBlocks.cs`) thay MTEXT: TEN_PHONG (MTEXT nhiều dòng, căn giữa, cao chữ và độ rộng theo form, mặc định chữ hoa vi-VN) cùng MA_PHONG, TEN_CU, TEN_MOI, TRANG_THAI, GHI_CHU ẩn. MRT_ROOM_V1 lưu trên TEN_PHONG (thêm Upper, Frame, FrameShape, FramePad, FrameRadius, Status). Khung LWPOLYLINE (bo góc / viên thuốc / chữ nhật / không) đo theo kích thước chữ thật, cùng layer, GROUP ẩn danh với block, vẽ lại khi Apply đổi tên. Lưu ý API: phải đặt `AttributeReference.Height`, `Justify=MiddleCenter`, `AlignmentPoint` trước khi ghi `MTextAttribute`, vì `UpdateMTextAttribute` áp lại các giá trị này; ATTDEF nhiều dòng tạo bằng `IsMTextAttributeDefinition=true` rồi mới sửa `MTextAttributeDefinition`.
+- **Gộp chữ cũ**: TEXT/MTEXT ngoài block được thay bằng block (xóa chữ cũ, nội dung ở TEN_CU), có thể tắt. Chữ trong block dùng chung giữ nguyên. Nhãn MTEXT 2.0.2.3 (có Source) được đổi thành block.
+- **Tách / ghép**: `RoomCatalog.Build` coi cùng ID + cùng tên cũ + nhiều tên mới là tách (ID-1, ID-2…), cùng ID khác tên cũ vẫn là xung đột; nhiều tên cũ cùng tên mới là Ghép. Số vị trí trong DWG bằng số tên mới thì mỗi vị trí một tên (X tăng, rồi Y giảm; tên theo dòng Excel). Một vị trí thì xếp chồng. Các trường hợp này và mã trùng vị trí được đánh dấu **cần kiểm tra**: màu 1 (đỏ) với lý do ở GHI_CHU; phòng bình thường màu 158 (đổi được trong form).
+- **Layer đích** tùy ý, tự tạo nếu chưa có; mặc định `Mr.T Tên phòng mới`. **SearchCombo** viết lại: TextBox + danh sách lọc không lấy focus (chặn WM_LBUTTONDOWN/WM_MOUSEACTIVATE) nên bấm chọn đúng dòng; rời ô với chữ gõ dở chỉ chọn khi khớp duy nhất.
+- **Nhớ lựa chọn**: `RoomSettings` lưu `%LOCALAPPDATA%\MrT\CADToolsetooms-settings.json` (Excel, sheet, dòng tiêu đề, cột, layer, kiểu nhãn, tùy chọn rà soát); mở form tự nạp lại danh sách.
+- **Kiểm tra**: build + package + test-package 617 PASS / 0 FAIL (nhận 2.0.2.3 đang cài). `tests/run-room-native.ps1` PASS gồm ca block mới (layer mới, cao 300/rộng 2000, chữ hoa, khung bao trọn chữ, group, thay chữ cũ, tách theo vị trí, đổi nhãn 2.0.2.3, màu 158/đỏ, chạy lại, đổi tên vẽ lại khung) và UNDO với block. Bản sao bản vẽ tầng 4 + Excel *Nhà A tầng 4cx*: 95 chữ phòng (97 chữ trừ 2 tên khoa), 87 mã khác nhau, 8 mã xuất hiện 2 lần; tạo 88 block, 16 block đỏ cần kiểm tra, đổi 8 nhãn 2.0.2.3, chạy lại 0, cập nhật tìm lại 88; ảnh in thử cho thấy chữ căn giữa trong khung.
+- Chưa kiểm: hộp thoại MRTROOMS trong AutoCAD đầy đủ sau khi cài 2.0.2.4.
+
 # Bàn giao 2.0.2.3
 
 Nhánh **fix/rooms-numeric-batch-2.0.2.3** tạo từ commit `69a7416` (2.0.2.2, PR #5), xử lý Issue #6. Bộ cài ở **releases/MrT_CAD_Toolset_2.0.2.3_Setup.exe**, ProductCode `{6D911128-EA9D-4DA8-A90C-6F479FF7E85D}`, SHA-256 **189B0D5868E3003A252B18C1D8D771F79A0FAF43F7EFE92E815FEA7A881F07F2**.

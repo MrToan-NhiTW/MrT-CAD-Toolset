@@ -173,6 +173,101 @@ public static class RoomNativeRuntime
         }
         output.Add("PASS: block labels — nested/rotated/scaled positions, repeats, no duplicates, reopen, update, switch, hide layer.");
     }
+    static Dictionary<string,string> Attributes(Transaction tr,BlockReference br)
+    {
+        var d=new Dictionary<string,string>();
+        foreach(ObjectId id in br.AttributeCollection){var a=(AttributeReference)tr.GetObject(id,OpenMode.ForRead);d[a.Tag]=a.IsMTextAttribute?a.MTextAttribute.Text:a.TextString;}
+        return d;
+    }
+    static List<BlockReference> RoomBlocks(Transaction tr,Database db)
+    {
+        var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead);
+        return space.Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as BlockReference).Where(b=>b!=null&&!b.IsErased&&((BlockTableRecord)tr.GetObject(b.BlockTableRecord,OpenMode.ForRead)).Name==RoomService.RoomBlockName).ToList();
+    }
+    // 2.0.2.4: room blocks with attributes, rounded frame, new layer, replace direct text, split rooms.
+    static void RoomBlockCase(Database db,List<string> output)
+    {
+        const string source="ROOM_OLD_BLOCKS";const string layer="Mr.T Phòng mới thử";
+        ObjectId direct;
+        using(var tr=db.TransactionManager.StartTransaction())
+        {
+            var layers=(LayerTable)tr.GetObject(db.LayerTableId,OpenMode.ForWrite);
+            var l=new LayerTableRecord{Name=source};layers.Add(l);tr.AddNewlyCreatedDBObject(l,true);
+            var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);
+            var t=new DBText{TextString="601",Position=new Point3d(10000,100,0),Height=5,LayerId=l.ObjectId};space.AppendEntity(t);tr.AddNewlyCreatedDBObject(t,true);direct=t.ObjectId;
+            var table=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForWrite);
+            var def=new BlockTableRecord{Name="BLK_SHARED_602"};table.Add(def);tr.AddNewlyCreatedDBObject(def,true);
+            var s=new DBText{TextString="602",Position=Point3d.Origin,Height=5,LayerId=l.ObjectId};def.AppendEntity(s);tr.AddNewlyCreatedDBObject(s,true);
+            var br=new BlockReference(new Point3d(12000,0,0),def.ObjectId){Rotation=Math.PI/2};space.AppendEntity(br);tr.AddNewlyCreatedDBObject(br,true);
+            var def603=new BlockTableRecord{Name="BLK_SHARED_603"};table.Add(def603);tr.AddNewlyCreatedDBObject(def603,true);
+            var t603=new DBText{TextString="603",Position=Point3d.Origin,Height=5,LayerId=l.ObjectId};def603.AppendEntity(t603);tr.AddNewlyCreatedDBObject(t603,true);
+            var i603=new BlockReference(new Point3d(14000,0,0),def603.ObjectId);space.AppendEntity(i603);tr.AddNewlyCreatedDBObject(i603,true);
+            foreach(var x in new[]{18000d,16000d}){var t604=new DBText{TextString="604",Position=new Point3d(x,0,0),Height=5,LayerId=l.ObjectId};space.AppendEntity(t604);tr.AddNewlyCreatedDBObject(t604,true);}
+            tr.Commit();
+        }
+        var catalog=RoomCatalog.Build(new[]{new RoomEntry{Id="601",OldName="601",NewName="Phòng họp giao ban",ExcelRow=2},
+            new RoomEntry{Id="602",OldName="602",NewName="Kho dịch truyền",ExcelRow=3},new RoomEntry{Id="602",OldName="602",NewName="Kho huyết thanh",ExcelRow=4},
+            new RoomEntry{Id="603",OldName="603",NewName="Phòng trực",ExcelRow=5},
+            new RoomEntry{Id="604",OldName="604",NewName="Phòng A",ExcelRow=6},new RoomEntry{Id="604",OldName="604",NewName="Phòng B",ExcelRow=7}});
+        // A 2.0.2.4 MTEXT label already made for 603 must become a block, not block 603.
+        var old603=RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,source),catalog,true,new RoomMatchOptions{CreateLabels=true}).Single(h=>h.Text=="603"&&h.Ready);
+        RoomService.ApplyMatches(db,db.CurrentSpaceId,new[]{old603},true,RoomCatalog.DefaultLayer,RoomCatalog.DefaultStyle,false,null);
+        var legacyLabel=old603.Label;
+        var options=new RoomMatchOptions{CreateLabels=true,Blocks=true,ReplaceOld=true};
+        var style=new RoomLabelStyle{Layer=layer,Height=300,Width=2000,Upper=true,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,ReplaceOld=true};
+        Func<List<RoomHit>> match=()=>RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,source),catalog,true,options);
+        var ready=match().Where(h=>h.Ready).ToList();
+        Check(ready.Count==5&&ready.Where(h=>h.Text=="604").All(h=>h.Splits.Count==1&&h.Review)&&ready.Single(h=>h.Text=="602").Splits.Count==2&&ready.Single(h=>h.Text=="601").Action==RoomNameMatcher.ActionReplace&&ready.Single(h=>h.Text=="603").Action==RoomNameMatcher.ActionUpgrade,"Direct 601 is replaced; shared 602 is a split; the old 603 MTEXT label is upgraded");
+        var done=RoomService.ApplyBlocks(db,db.CurrentSpaceId,ready,true,style,null);
+        Check(done.Labels==6&&done.Replaced==3&&done.Upgraded==1&&legacyLabel.IsErased,"Six room blocks created, three old texts replaced and one old MTEXT label upgraded");
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            Check(direct.IsErased,"The old direct text is merged into the block (erased)");
+            var blocks=RoomBlocks(tr,db).Where(b=>b.Layer==layer).ToList();
+            Check(blocks.Count==6,"Blocks sit on the new layer, created when missing");
+            var b604=blocks.Where(b=>Attributes(tr,b)[RoomService.TagId].StartsWith("604-")).OrderBy(b=>b.Position.X).ToList();
+            Check(b604.Count==2&&Attributes(tr,b604[0])[RoomService.TagName]=="PHÒNG A"&&Math.Abs(b604[0].Position.X-16000)<100&&Attributes(tr,b604[1])[RoomService.TagName]=="PHÒNG B"&&Math.Abs(b604[1].Position.X-18000)<100,"Split 604 at two places: left place gets Phòng A, right place gets Phòng B");
+            Check(b604.All(b=>b.ColorIndex==1&&Attributes(tr,b)[RoomService.TagNote].Contains("cần kiểm tra"))&&blocks.Where(b=>Attributes(tr,b)[RoomService.TagId]=="601").All(b=>b.ColorIndex==158),"Rooms to check are red with a note; normal rooms use colour 158");
+            var a601=blocks.Select(b=>Attributes(tr,b)).Single(a=>a[RoomService.TagId]=="601");
+            Check(a601[RoomService.TagName]=="PHÒNG HỌP GIAO BAN"&&a601[RoomService.TagOld]=="601"&&a601[RoomService.TagNew]=="Phòng họp giao ban"&&a601[RoomService.TagStatus]==RoomCatalog.StatusRename,"601 block: upper-case name, old name, new name and status attributes");
+            var split=blocks.Where(b=>Attributes(tr,b)[RoomService.TagId].StartsWith("602-")).ToList();
+            Check(split.Count==2&&split.All(b=>Attributes(tr,b)[RoomService.TagStatus]==RoomCatalog.StatusSplit)&&split[0].Position.DistanceTo(split[1].Position)>300&&split.All(b=>Math.Abs(b.Rotation-Math.PI/2)<1e-9),"Split rooms 602-1/602-2 are stacked apart and follow the 90° block");
+            var name=blocks.Select(b=>b.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(a=>a.Tag==RoomService.TagName)).ToList();
+            Check(name.All(a=>a.IsMTextAttribute&&Math.Abs(a.MTextAttribute.TextHeight-300)<1e-9&&Math.Abs(a.MTextAttribute.Width-2000)<1e-9&&a.Layer==layer),"Name attribute uses the chosen height 300 and MTEXT width 2000: "+String.Join("; ",name.Select(a=>a.IsMTextAttribute+" h="+a.MTextAttribute.TextHeight+" w="+a.MTextAttribute.Width+" ah="+a.Height+" "+a.Layer)));
+            var tag=RoomService.ReadTag(db,name[0].ObjectId);
+            Check(tag!=null&&tag.Upper&&!String.IsNullOrEmpty(tag.Frame),"Name attribute carries MRT_ROOM_V1 with the frame handle");
+            var frames=((BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead)).Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as Polyline).Where(p=>p!=null&&p.Layer==layer).ToList();
+            Check(frames.Count==6&&frames.Count(p=>p.ColorIndex==1)==4&&frames.All(p=>p.Closed&&p.NumberOfVertices==8&&Enumerable.Range(0,8).Count(i=>p.GetBulgeAt(i)>0.4)==4),"Each room has a closed rounded frame on the same layer");
+            var block601=blocks.Single(b=>Attributes(tr,b)[RoomService.TagId]=="601");
+            var frame601=frames.OrderBy(p=>p.GeometricExtents.MinPoint.DistanceTo(block601.Position)).First();
+            var ext=frame601.GeometricExtents;
+            Check(ext.MinPoint.X<block601.Position.X&&ext.MaxPoint.X>block601.Position.X&&ext.MinPoint.Y<block601.Position.Y&&ext.MaxPoint.Y>block601.Position.Y&&ext.MaxPoint.Y-ext.MinPoint.Y>300,"The frame encloses the room name");
+            var nameAttr=block601.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(x=>x.Tag==RoomService.TagName);var nameExt=new Extents3d();using(var nm=nameAttr.MTextAttribute)using(var corners=nm.GetBoundingPoints())foreach(Point3d c in corners)nameExt.AddPoint(c);
+            Check(nameExt.MinPoint.X>=ext.MinPoint.X&&nameExt.MaxPoint.X<=ext.MaxPoint.X&&nameExt.MinPoint.Y>=ext.MinPoint.Y&&nameExt.MaxPoint.Y<=ext.MaxPoint.Y
+                &&Math.Abs((nameExt.MinPoint.X+nameExt.MaxPoint.X)/2-block601.Position.X)<300*0.6,"Every letter of the name lies inside the frame and the name is centred: name "+nameExt.MinPoint+"-"+nameExt.MaxPoint+" frame "+ext.MinPoint+"-"+ext.MaxPoint);
+            var groups=(DBDictionary)tr.GetObject(db.GroupDictionaryId,OpenMode.ForRead);
+            bool grouped=false;foreach(DBDictionaryEntry e in groups){var g=tr.GetObject(e.Value,OpenMode.ForRead) as Group;if(g!=null&&g.Has(block601)&&g.Has(frame601))grouped=true;}Check(grouped,"Block and frame are grouped");
+        }
+        Check(!match().Any(h=>h.Ready),"Running again creates no duplicate blocks");
+        var widthBefore=0d;
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var f=((BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead)).Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as Polyline).Where(p=>p!=null&&p.Layer==layer).ToList();
+            widthBefore=f.Max(p=>p.GeometricExtents.MaxPoint.X-p.GeometricExtents.MinPoint.X);
+        }
+        var plan=RoomService.Inspect(db,catalog,false);
+        var mine=plan.Rows.Where(r=>r.RoomId=="601"||(r.RoomId??"").StartsWith("602-")).ToList();
+        Check(mine.Count==3&&mine.All(r=>r.Ready)&&mine.Single(r=>r.RoomId=="601").After=="601","Update finds the block names by ID and keeps upper case");
+        RoomService.Apply(db,plan);
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var blocks=RoomBlocks(tr,db).Where(b=>b.Layer==layer).ToList();
+            Check(blocks.Select(b=>Attributes(tr,b)).Single(a=>a[RoomService.TagId]=="601")[RoomService.TagName]=="601","Switching back shows the old name in the block");
+            var f=((BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead)).Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as Polyline).Where(p=>p!=null&&p.Layer==layer).ToList();
+            Check(f.Max(p=>p.GeometricExtents.MaxPoint.X-p.GeometricExtents.MinPoint.X)<widthBefore,"Frames are redrawn to fit the shorter name");
+        }
+        output.Add("PASS: room blocks — new layer, height/width, upper case, frame+group, replace old text, split, rerun, switch.");
+    }
     // UNDO check on the active drawing: FIX builds a block with 515, APPLY labels it in its
     // own command, the script runs UNDO 1, CHECK expects the block kept and the label gone.
     static void Say(string text)
@@ -185,7 +280,7 @@ public static class RoomNativeRuntime
         using(var tr=db.TransactionManager.StartOpenCloseTransaction())
         {
             var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead);
-            return space.Cast<ObjectId>().Count(id=>{var tag=RoomService.ReadTag(db,id);return tag!=null&&tag.Id=="515";});
+            return space.Cast<ObjectId>().SelectMany(id=>{var br=tr.GetObject(id,OpenMode.ForRead) as BlockReference;return br==null?new[]{id}:br.AttributeCollection.Cast<ObjectId>().ToArray();}).Count(id=>{var tag=RoomService.ReadTag(db,id);return tag!=null&&tag.Id=="515";});
         }
     }
     [CommandMethod("MRTROOMSUNDOFIX",CommandFlags.Modal)]public static void UndoFixture()
@@ -205,8 +300,8 @@ public static class RoomNativeRuntime
     {
         var db=HostApplicationServices.WorkingDatabase;
         var catalog=RoomCatalog.Build(new[]{new RoomEntry{Id="515",OldName="515",NewName="615"}});
-        var ready=RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,null),catalog,true,new RoomMatchOptions{CreateLabels=true}).Where(h=>h.Ready).ToList();
-        var done=RoomService.ApplyMatches(db,db.CurrentSpaceId,ready,true,RoomCatalog.DefaultLayer,RoomCatalog.DefaultStyle,false,null);
+        var ready=RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,null),catalog,true,new RoomMatchOptions{CreateLabels=true,Blocks=true}).Where(h=>h.Ready).ToList();
+        var done=RoomService.ApplyBlocks(db,db.CurrentSpaceId,ready,true,new RoomLabelStyle{Layer="Mr.T UNDO thử"},null);
         Say("UNDO apply labels="+done.Labels+" count="+Labels(db));
     }
     [CommandMethod("MRTROOMSUNDOCHECK",CommandFlags.Modal)]public static void UndoCheck()
@@ -249,6 +344,7 @@ public static class RoomNativeRuntime
                 Check(((DBText)tr.GetObject(legacy,OpenMode.ForRead)).TextString=="TRỰC","Adopted TEXT participates in old/new switching");
             BlockRoundTrip(db,id);
             BlockLabels(db,output);
+            RoomBlockCase(db,output);
             output.Add("RESULT: PASS — create, ID, Excel refresh, switch, geometry, manual edit skip.");
         }}catch(System.Exception ex){output.Add("RESULT: FAIL "+ex);}finally{HostApplicationServices.WorkingDatabase=old;File.WriteAllLines(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),"RoomNativeRuntime.txt"),output);var doc=Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument;if(doc!=null)doc.Editor.WriteMessage("\n"+String.Join("\n",output)+"\n");}
     }

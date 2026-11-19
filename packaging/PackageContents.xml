@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.2.3" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{6D911128-EA9D-4DA8-A90C-6F479FF7E85D}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
+<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.2.4" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{C8EB58E7-6BC6-4F8D-8CCA-A8B71D500D91}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
   <CompanyDetails Name="Mr.Toan-NhiTW" />
   <Components Description="AutoCAD 2024 x64 - .NET Framework 4.8">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.3" SeriesMax="R24.3" />
-    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.2.3" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
+    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.2.4" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
       <AssemblyMappings><AssemblyMappingFolder Path="./Contents/Win64" /></AssemblyMappings>
       <Commands GroupName="MRT_CAD_TOOLSET">
         <Command Global="MRTUNIFYR" Local="MRTUNIFYR" /><Command Global="MRTDENSITY" Local="MRTDENSITY" /><Command Global="MRTTABLEMASK" Local="MRTTABLEMASK" /><Command Global="MRTJOIN" Local="MRTJOIN" /><Command Global="MRTJOINTOL" Local="MRTJOINTOL" /><Command Global="MRTBREAK" Local="MRTBREAK" /><Command Global="MRTALIASES" Local="MRTALIASES" />

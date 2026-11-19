@@ -46,8 +46,8 @@ public static class RoomWorkbookTests
     public static int Main(string[] args){try{
         var b=RoomWorkbook.Read(args[0]);Check(b.Sheets.Count==2&&b.Sheets[0].Name=="Tên phòng"&&b.Sheets[1].Name=="Tầng 2","Loads sheet names and relationships");
         Check(b.Sheets[0].Cell(2,1).Text=="PHÒNG KHÁM"&&b.Sheets[0].Cell(5,1).Text=="001","Unicode and identifier leading zeros are preserved");
-        var c=RoomWorkbook.Catalog(b.Sheets[0],1,1,2,0);Check(c.Find("PHÒNG KHÁM").NewName=="PHÒNG ĐIỀU TRỊ"&&c.Ambiguous.Contains("PHÒNG XÉT NGHIỆM"),"Maps old-to-new and detects duplicate conflicting original IDs");
-        Check(c.ConflictTargets["PHÒNG XÉT NGHIỆM"].Count==2,"A conflicting old name lists both Excel targets");
+        var c=RoomWorkbook.Catalog(b.Sheets[0],1,1,2,0);Check(c.Find("PHÒNG KHÁM").NewName=="PHÒNG ĐIỀU TRỊ"&&c.Find("PHÒNG XÉT NGHIỆM-2")!=null,"Maps old-to-new and turns one old room with two new names into a split");
+        Check(c.Problems.Any(p=>p.StartsWith("Tách phòng PHÒNG XÉT NGHIỆM")),"A split is listed in the Excel notes");
         var d=RoomWorkbook.Catalog(b.Sheets[1],3,2,3,0);Check(d.Find("PHÒNG HỒI SỨC").NewName=="PHÒNG ĐIỀU TRỊ TÍCH CỰC","Custom sheet, row and columns work");var test=new RoomSheet();test.Columns=2;
             test.Rows[4]=new System.Collections.Generic.Dictionary<int,RoomCell>{{1,new RoomCell{Text="Tên phòng cũ"}},{2,new RoomCell{Text="Tên phòng mới"}}};
             test.Rows[5]=new System.Collections.Generic.Dictionary<int,RoomCell>{{1,new RoomCell{Text="001"}},{2,new RoomCell{Text="Phòng trực"}}};
@@ -65,7 +65,7 @@ public static class RoomWorkbookTests
             Check(n.Cell(9,1).Error.Contains("ngày")&&n.Cell(10,2).Error.Contains("thập phân")&&n.Cell(14,2).Error.Contains("định dạng"),"Dates, decimals and thousand-separator numbers stay explicit errors");
             var cat=RoomWorkbook.Catalog(n,3,1,2,0);
             Check(cat.Find("510").NewName=="610"&&cat.Find("007").NewName=="Phòng 007"&&cat.Find("007A").NewName=="Kho 7A"&&cat.Find("001")!=null&&cat.Find("P012")!=null,"Numeric and text codes all enter the catalog");
-            Check(cat.Ambiguous.Contains("512")&&cat.ConflictTargets["512"].SequenceEqual(new[]{"Hành chính","Kho"}),"Two rows for 512 with different targets are a reported conflict");
+            Check(cat.Find("512-1").NewName=="Hành chính"&&cat.Find("512-2").NewName=="Kho"&&cat.Find("512-1").SplitOf=="512","Two rows for 512 with different targets become split rooms 512-1 and 512-2");
             Check(cat.Problems.Count(p=>p.Contains("Dòng 9")||p.Contains("Dòng 10")||p.Contains("Dòng 14"))==3&&cat.ErrorNames.Contains("Phòng 9"),"Only the genuinely unreadable rows are warnings");
         }
         finally{File.Delete(path);}

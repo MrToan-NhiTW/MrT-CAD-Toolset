@@ -33,39 +33,59 @@ public static class RoomUITests
             f.GetType().GetField("book",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(f,book);var sheet=(ComboBox)Field(f,"sheet");foreach(var s in book.Sheets)sheet.Items.Add(s.Name);sheet.SelectedIndex=0;
             Check(((ComboBox)Field(f,"oldCol")).SelectedIndex==0&&((ComboBox)Field(f,"newCol")).SelectedIndex==1,"Column selectors detect Vietnamese headers");
             Check(((ComboBox)Field(f,"oldCol")).Text.Contains("Cột A")&&((ComboBox)Field(f,"oldCol")).Text.Contains("PHÒNG KHÁM"),"Column choices show a real Excel example");
-            Check(((ComboBox)Field(f,"targetLayer")).Text==RoomCatalog.DefaultLayer&&((ComboBox)Field(f,"targetStyle")).Text==RoomCatalog.DefaultStyle,"Default layer and style are explicit");
+            Check(((SearchCombo)Field(f,"targetLayer")).Text==RoomCatalog.NewLayer&&((SearchCombo)Field(f,"targetStyle")).Text==RoomCatalog.DefaultStyle,"Default layer and style are explicit");
             f.GetType().GetField("catalog",BindingFlags.NonPublic|BindingFlags.Instance).SetValue(f,catalog);f.GetType().GetMethod("RefreshRows",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(f,null);var grid=(DataGridView)Field(f,"grid");
-            Check(((ICollection)grid.DataSource).Count==2&&TypeDescriptor.GetProperties(typeof(RoomEntry))["OldName"]!=null,"Catalog binds rows through accessible properties");
+            Check(((ICollection)grid.DataSource).Count==4&&TypeDescriptor.GetProperties(typeof(RoomEntry))["OldName"]!=null,"Catalog binds rows through accessible properties");
             var search=(TextBox)Field(f,"search");search.Text="001";Check(((ICollection)grid.DataSource).Count==1,"Quick search filters room IDs");
             search.Text="phong dieu";Check(((ICollection)grid.DataSource).Count==1,"Excel search ignores accents and case");
             search.Text="";var list=(IBindingList)grid.DataSource;
             Check(list.SupportsSorting,"Excel grid columns can be sorted");
             list.ApplySort(TypeDescriptor.GetProperties(typeof(RoomEntry))["Id"],ListSortDirection.Descending);
-            Check(((RoomEntry)list[0]).Id=="PHÒNG KHÁM"&&((RoomEntry)list[1]).Id=="001","Sorting by ID reorders rows");
+            Check(((RoomEntry)list[0]).Id=="PHÒNG XÉT NGHIỆM-2"&&((RoomEntry)list[list.Count-1]).Id=="001","Sorting by ID reorders rows");
         }
-        using(var f=new RoomForm((r,h,m,l,s)=>true,(c,m)=>{},new[]{"0","A-WALL","Tên phòng cũ","Mr.T Tên phòng"},new[]{"Standard"},null,null))
+        using(var f=new RoomForm((r,m,s)=>true,(c,m)=>{},new[]{"0","A-WALL","Tên phòng cũ","Mr.T Tên phòng"},new[]{"Standard"},null,null))
         {
             var source=(SearchCombo)Field(f,"sourceLayer");
             Check(source.Text==RoomForm.AllLayers&&source.Choices.Count==5,"Source layer list starts with all layers");
             source.Text="ten phong cu";Check(source.Value=="Tên phòng cũ","Typing part of a layer name without accents picks that layer");
             source.Text="khong co layer nay";Check(source.Value=="Tên phòng cũ","An unknown layer name falls back to the last valid choice");
-            var target=(SearchCombo)Field(f,"targetLayer");Check(target.Value==RoomCatalog.DefaultLayer&&target.Choices.Count(n=>n==RoomCatalog.DefaultLayer)==1,"Default target layer is listed once");
+            var target=(SearchCombo)Field(f,"targetLayer");Check(target.Value==RoomCatalog.NewLayer&&target.Choices.Count(n=>n==RoomCatalog.NewLayer)==1,"New-name layer is the default target and is listed once");
+            target.Text="Mr.T Phòng tầng 4";typeof(Control).GetMethod("OnLeave",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(target,new object[]{EventArgs.Empty});
+            Check(target.Value=="Mr.T Phòng tầng 4","A target layer that does not exist yet is kept as typed (created on apply)");
+            target.Choose(RoomCatalog.DefaultLayer);
             source.Text="mr.t ten phong";typeof(Control).GetMethod("OnLeave",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(source,new object[]{EventArgs.Empty});
             Check(source.Value==RoomCatalog.DefaultLayer&&target.Value==RoomCatalog.NewLayer,"Old names on the default layer move the target to a separate new-name layer");
         }
+        var remembered=new RoomSettings{ExcelPath=args[0],Sheet="Tầng 2",HeaderRow=3,OldColumn=1,NewColumn=2,IdColumn=0,SourceLayer="Tên phòng cũ",ShowNew=true,
+            Label=new RoomLabelStyle{Layer="Mr.T Phòng tầng 4",Style="Standard",Height=400,Width=3000,Upper=false,Frame=RoomLabelStyle.FrameSlot,Pad=.3,Radius=1,ReplaceOld=false}};
+        RoomSettings saved=null;
+        using(var f=new RoomForm((r,m,s)=>true,(c,m)=>{},new[]{"0","Tên phòng cũ"},new[]{"Standard"},null,null,remembered,s=>saved=s))
+        {
+            var grid=(DataGridView)Field(f,"grid");
+            Check(((ComboBox)Field(f,"sheet")).Text=="Tầng 2"&&grid.DataSource!=null&&((ICollection)grid.DataSource).Count==1,"The last Excel file, sheet, header row and columns are reopened and loaded");
+            var look=f.LabelStyle;
+            Check(look.Height==400&&look.Width==3000&&!look.Upper&&look.Frame==RoomLabelStyle.FrameSlot&&look.Layer=="Mr.T Phòng tầng 4"&&!look.ReplaceOld&&((CheckBox)Field(f,"showNew")).Checked,"Label height, width, case, frame, new layer and options are restored");
+            Check(((SearchCombo)Field(f,"sourceLayer")).Value=="Tên phòng cũ","The old-name layer is restored");
+            ((NumericUpDown)Field(f,"height")).Value=350;f.ShowInTaskbar=false;f.StartPosition=FormStartPosition.Manual;f.Left=-20000;f.Show();Application.DoEvents();f.Close();
+            Check(saved!=null&&saved.Label.Height==350&&saved.Sheet=="Tầng 2"&&saved.OldColumn==1,"Choices are saved when the form closes");
+        }
+        var path=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"MrT-room-settings-"+Guid.NewGuid().ToString("N")+".json");
+        try{remembered.Save(path);var back=RoomSettings.Load(path);Check(back.Label.Height==350&&back.Label.Frame==RoomLabelStyle.FrameSlot&&back.ExcelPath==args[0],"Settings survive a save and reload");}
+        finally{System.IO.File.Delete(path);}
+        Check(RoomSettings.Load(path).Label.Height==250,"Missing settings fall back to defaults");
         var choices=new RoomReviewChoices();int rebuilt=0;
         var firstRows=new List<RoomReviewRow>{new RoomReviewRow{Handle="1/2",Id="510",Current="510",NewName="610",Status="Chữ trong block dùng chung — bật «Tạo nhãn riêng» để áp dụng"},
             new RoomReviewRow{Handle="3",Id="511",Current="511",Status="Thiếu ánh xạ"}};
         Func<RoomReviewChoices,RoomReviewPage> rebuild=c=>{rebuilt++;return new RoomReviewPage{Summary="Lần "+rebuilt,Rows=new List<RoomReviewRow>{
-            new RoomReviewRow{Handle="1/2",Id="510",Current="510",NewName="610",After=c.CreateLabels?"610":"",Ready=c.CreateLabels,Action=c.CreateLabels?RoomNameMatcher.ActionLabel:"—",Status=c.CreateLabels?"Sẵn sàng":"Chờ"},
+            new RoomReviewRow{Handle="1/2",Id="510",Current="510",NewName="610",After=c.AllowRepeats?"610":"",Ready=c.AllowRepeats,Action=c.AllowRepeats?RoomNameMatcher.ActionLabel:"—",Status=c.AllowRepeats?"Sẵn sàng":"Chờ"},
             new RoomReviewRow{Handle="3",Id="511",Current="511",Status="Thiếu ánh xạ"}}};};
-        choices.CreateLabels=false;
+        choices.AllowRepeats=false;
         using(var review=new RoomReviewForm(firstRows,"Rà soát",choices,rebuild))
         {
             review.ShowInTaskbar=false;review.StartPosition=FormStartPosition.Manual;review.Left=-20000;review.Show();Application.DoEvents();
             var ok=(Button)review.AcceptButton;Check(!ok.Enabled,"Nothing applies while the block label option is off");
-            var create=Controls<CheckBox>(review).Single(c=>c.Text.StartsWith("Tạo nhãn riêng"));create.Checked=true;Application.DoEvents();
-            Check(rebuilt==1&&ok.Enabled&&ok.Text.Contains("1 dòng")&&review.Choices.CreateLabels,"Turning on labels re-matches and enables the apply button with a count");
+            var create=Controls<CheckBox>(review).Single(c=>c.Text.StartsWith("Áp dụng mọi vị trí"));create.Checked=true;Application.DoEvents();
+            Check(rebuilt==1&&ok.Enabled&&ok.Text.Contains("1 dòng")&&review.Choices.AllowRepeats,"Turning on apply-all re-matches and enables the apply button with a count");
             var hide=Controls<CheckBox>(review).Single(c=>c.Text.StartsWith("Tắt layer"));Check(!hide.Enabled,"Turning the old layer off is only offered when it is safe");
             var grid=Controls<DataGridView>(review).Single();var query=Controls<TextBox>(review).First();
             query.Text="tao nhan";Check(grid.Rows.Count==1,"Review search matches the action column without accents");

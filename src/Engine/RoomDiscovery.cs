@@ -20,7 +20,7 @@ namespace MedGas2024.Engine
 
     public sealed class RoomApplyResult
     {
-        public int Adopted,Labels;public string HiddenLayer;
+        public int Adopted,Labels,Replaced,Upgraded;public string HiddenLayer;
         public int Total{get{return Adopted+Labels;}}
     }
 
@@ -85,8 +85,8 @@ namespace MedGas2024.Engine
         static bool WritableRoomText(Entity entity,string desired)
         {
             var attr=entity as AttributeReference;
-            if(attr!=null&&attr.IsMTextAttribute)return false;
             if(entity.HasFields||String.IsNullOrWhiteSpace(desired))return false;
+            if(attr!=null&&attr.IsMTextAttribute)return true;
             var m=entity as MText;
             if(m!=null)return m.Contents==m.Text||m.Contents==Literal(m.Text);
             return RoomNameMatcher.SingleLineSafe(desired);
@@ -95,6 +95,12 @@ namespace MedGas2024.Engine
         {
             var m=entity as MText;
             if(m!=null){m.Contents=Literal(desired);return;}
+            var attr=entity as AttributeReference;
+            if(attr!=null&&attr.IsMTextAttribute)
+            {
+                using(var value=attr.MTextAttribute){value.Contents=Literal(desired);attr.MTextAttribute=value;}
+                attr.UpdateMTextAttribute();return;
+            }
             var t=(DBText)entity;
             t.TextString=desired;
             t.AdjustAlignment(db);
@@ -167,11 +173,14 @@ namespace MedGas2024.Engine
             string existing=shared?null:Read(e,tr);
             if(!onSource&&existing==null)return;
             var hit=new RoomHit{Id=e.ObjectId,Path=path,ToWorld=transform,Shared=shared,AttributeOwner=attrOwner,
-                Layer=effective,StoredLayer=e.Layer,OnSourceLayer=onSource,Text=RoomText(e),SingleLine=e is DBText,NeedsLabel=shared};
+                Layer=effective,StoredLayer=e.Layer,OnSourceLayer=onSource,Text=RoomText(e),SingleLine=e is DBText,NeedsLabel=shared,
+                Direct=!shared&&attrOwner.IsNull&&(e is MText||e.GetType()==typeof(DBText))};
             hit.Place=hit.Address;
+            try{var x=e.GeometricExtents;var c=(x.MinPoint+(x.MaxPoint-x.MinPoint)*0.5).TransformBy(transform);hit.X=c.X;hit.Y=c.Y;}
+            catch(Autodesk.AutoCAD.Runtime.Exception){var c=Point3d.Origin.TransformBy(transform);hit.X=c.X;hit.Y=c.Y;}
             if(existing!=null)
             {
-                try{var tag=RoomTag.Parse(existing);hit.Tag=tag.Id;hit.Linked=tag.Source;hit.Blocked="Đã gắn ID";}
+                try{var tag=RoomTag.Parse(existing);hit.Tag=tag.Id;hit.Linked=tag.Source;hit.LegacyLabel=e is MText&&!String.IsNullOrEmpty(tag.Source);hit.Blocked="Đã gắn ID";}
                 catch(System.Runtime.Serialization.SerializationException){hit.Tag="";hit.Blocked="Dữ liệu ID không đọc được";}
                 catch(ArgumentException){hit.Tag="";hit.Blocked="Dữ liệu ID không hợp lệ";}
             }
