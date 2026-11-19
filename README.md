@@ -1,6 +1,6 @@
 # Mr.T CAD Toolset
 
-Add-in cho AutoCAD 2024 x64. Bản thử **2.0.2.4** kế thừa 2.0.2.2. [Tải bộ cài offline](releases/MrT_CAD_Toolset_2.0.2.4_Setup.exe).
+Add-in cho AutoCAD 2024 x64. Bản thử **2.0.2.5** kế thừa 2.0.2.2. [Tải bộ cài offline](releases/MrT_CAD_Toolset_2.0.2.5_Setup.exe).
 
 ## Bắt đầu
 

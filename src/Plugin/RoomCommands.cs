@@ -62,6 +62,57 @@ namespace MedGas2024.Plugin
                 (attributes.Count>0?"\n\nThuộc tính block:\n"+String.Join("\n",attributes):"");
             System.Windows.Forms.MessageBox.Show(detail,"Thông tin phòng · "+id.Handle);
         }
+        // Room manager: edit placed Mr.T_PHONG blocks; Retry zooms to a room and reopens with the edits kept.
+        static void ManageRoomBlocks(Document doc,System.Windows.Forms.IWin32Window owner)
+        {
+            var fromDrawing=RoomService.ListRoomBlocks(doc.Database);
+            if(fromDrawing.Count==0){System.Windows.Forms.MessageBox.Show("Bản vẽ chưa có block "+RoomService.RoomBlockName+". Hãy rà soát layer và gắn trước.","Mr.T quản lý phòng");return;}
+            var rows=fromDrawing.Select(r=>r.Copy()).ToList();
+            string note="Sửa trực tiếp trong bảng, hoặc chọn nhiều dòng rồi Áp cho dòng đã chọn. Xuất Excel để sửa ngoài rồi Nhập Excel đã sửa. Lưu vào bản vẽ là một bước UNDO.";
+            while(true)
+            {
+                using(var manager=new RoomManagerForm(rows,fromDrawing,note))
+                {
+                    var answer=AcApp.ShowModalDialog(manager);rows=manager.Rows;
+                    if(answer==System.Windows.Forms.DialogResult.Retry&&manager.ZoomHandle!=null)
+                    {
+                        var box=RoomService.RoomExtents(doc.Database,manager.ZoomHandle);
+                        Action look=()=>{ZoomTo(doc,box);doc.Editor.GetString("\nĐang xem phòng "+manager.ZoomHandle+". Nhấn Enter để quay lại bảng quản lý: ");};
+                        // From the room form (still open) the editor must be borrowed from it.
+                        if(owner!=null){using(doc.Editor.StartUserInteraction(owner.Handle))look();}else look();
+                        note="Đã phóng tới phòng "+manager.ZoomHandle+".";continue;
+                    }
+                    if(answer!=System.Windows.Forms.DialogResult.OK)return;
+                    using(doc.LockDocument())
+                    {
+                        int n=RoomService.SaveRoomBlocks(doc.Database,rows.Where(r=>r.Changed));doc.Editor.Regen();
+                        doc.Editor.WriteMessage("\nMr.T: đã cập nhật "+n+" phòng. UNDO để hoàn tác.");
+                        System.Windows.Forms.MessageBox.Show("Đã cập nhật "+n+" phòng.","Mr.T quản lý phòng");
+                    }
+                    return;
+                }
+            }
+        }
+        static void ZoomTo(Document doc,Extents3d bounds)
+        {
+            using(var view=doc.Editor.GetCurrentView())
+            {
+                var toWorld=Matrix3d.PlaneToWorld(view.ViewDirection);
+                toWorld=Matrix3d.Displacement(view.Target-Point3d.Origin)*toWorld;
+                toWorld=Matrix3d.Rotation(-view.ViewTwist,view.ViewDirection,view.Target)*toWorld;
+                bounds.TransformBy(toWorld.Inverse());
+                double aspect=view.Width/view.Height;var size=bounds.MaxPoint-bounds.MinPoint;
+                double h=Math.Max(Math.Max(size.Y,size.X/aspect),1);view.Height=h;view.Width=h*aspect;
+                view.CenterPoint=new Point2d((bounds.MinPoint.X+bounds.MaxPoint.X)/2,(bounds.MinPoint.Y+bounds.MaxPoint.Y)/2);
+                doc.Editor.SetCurrentView(view);
+            }
+        }
+        [CommandMethod("MRTROOMLIST",CommandFlags.Modal)]
+        public void RoomList()
+        {
+            var doc=AcApp.DocumentManager.MdiActiveDocument;
+            if(doc!=null)try{ManageRoomBlocks(doc,null);}catch(System.Exception ex){Report(doc,ex);}
+        }
         [CommandMethod("MRTROOMINFO",CommandFlags.Modal)]
         public void RoomInfo()
         {
@@ -120,7 +171,7 @@ namespace MedGas2024.Plugin
                 Action<RoomCatalog,bool,string,RoomLabelStyle,RoomSettings> scan=(catalog,mode,source,look,remembered)=>{
                     var db=doc.Database;var space=db.CurrentSpaceId;
                     var found=RoomService.ScanNames(db,space,source);
-                    Func<RoomReviewChoices,RoomMatchOptions> options=c=>new RoomMatchOptions{CreateLabels=true,Blocks=true,ReplaceOld=look.ReplaceOld,AllowRepeats=c.AllowRepeats};
+                    Func<RoomReviewChoices,RoomMatchOptions> options=c=>new RoomMatchOptions{CreateLabels=true,Blocks=true,ReplaceOld=look.ReplaceOld,AllowRepeats=c.AllowRepeats,KeepUnmatched=c.KeepUnmatched};
                     List<RoomHit> preview=null;Dictionary<string,RoomHit> ready=null;
                     Func<RoomReviewChoices,RoomReviewPage> build=c=>{
                         preview=RoomNameMatcher.Match(found,catalog,mode,options(c));
@@ -144,12 +195,14 @@ namespace MedGas2024.Plugin
                             (String.Equals(source,look.Layer,StringComparison.OrdinalIgnoreCase)?" Lưu ý: layer tên mới trùng layer chữ cũ; nên chọn layer khác (vd. "+RoomCatalog.NewLayer+").":"");
                         return new RoomReviewPage{Rows=rows,Summary=summary};
                     };
-                    var choices=new RoomReviewChoices{AllowRepeats=remembered.AllowRepeats,HideSource=remembered.HideSource};
+                    // 2.0.2.5: repeated codes and rooms missing from Excel are applied by default (flagged red).
+                    if(!remembered.RepeatsDecided){remembered.AllowRepeats=true;remembered.KeepUnmatched=true;remembered.RepeatsDecided=true;}
+                    var choices=new RoomReviewChoices{AllowRepeats=remembered.AllowRepeats,HideSource=remembered.HideSource,KeepUnmatched=remembered.KeepUnmatched};
                     var first=build(choices);
                     using(var review=new RoomReviewForm(first.Rows,first.Summary,choices,build))
                     {
                         var answer=AcApp.ShowModalDialog(review);
-                        remembered.AllowRepeats=choices.AllowRepeats;remembered.HideSource=choices.HideSource;
+                        remembered.AllowRepeats=choices.AllowRepeats;remembered.HideSource=choices.HideSource;remembered.KeepUnmatched=choices.KeepUnmatched;
                         if(answer==System.Windows.Forms.DialogResult.Retry)
                         {
                             var chosen=review.SelectedRoom;
@@ -183,6 +236,7 @@ namespace MedGas2024.Plugin
                 using(form=new RoomForm(place,update,RoomService.Layers(doc.Database),RoomService.Styles(doc.Database),find,scan,RoomSettings.Load(settingsPath),s=>s.Save(settingsPath)))
                 {
                     form.InspectTag+=delegate{using(doc.Editor.StartUserInteraction(form))InspectRoomTag(doc);};
+                    form.ManageRooms+=delegate{ManageRoomBlocks(doc,form);};
                     AcApp.ShowModalDialog(form);
                 }
             }catch(System.Exception ex){Report(doc,ex);}

@@ -43,8 +43,8 @@ namespace MrT.CAD.Toolset.Setup
                         using(var window=new SetupProgress(delegate {
                         if(Process.GetProcessesByName("acad").Length>0||Process.GetProcessesByName("accoreconsole").Length>0)throw new InvalidOperationException("Hãy lưu bản vẽ và đóng tất cả phiên AutoCAD trước khi cài / cập nhật / gỡ. Sau đó chạy lại Setup.exe.");
                         string data=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"MrT","CADToolset");
-                        string cache=Path.Combine(data,"SetupCache","2.0.2.4",Payload.Sha256.Substring(0,16));Directory.CreateDirectory(cache);
-                        string msi=Path.Combine(cache,"MrT_CAD_Toolset_2.0.2.4_AutoCAD2024_x64.msi");
+                        string cache=Path.Combine(data,"SetupCache","2.0.2.5",Payload.Sha256.Substring(0,16));Directory.CreateDirectory(cache);
+                        string msi=Path.Combine(cache,"MrT_CAD_Toolset_2.0.2.5_AutoCAD2024_x64.msi");
                         if(File.Exists(msi)){if(Digest(msi)!=Payload.Sha256)throw new InvalidDataException("Cache bộ cài đã bị thay đổi. Xóa đúng file cache rồi chạy lại: "+msi);}
                         else{string temporary=Path.Combine(cache,Guid.NewGuid().ToString("N")+".msi");Extract(temporary);File.Move(temporary,msi);}
                         string logs=Path.Combine(data,"Logs");Directory.CreateDirectory(logs);

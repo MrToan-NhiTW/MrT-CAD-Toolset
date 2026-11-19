@@ -8,7 +8,7 @@ using System.Xml.Linq;
 
 namespace MedGas2024.Core
 {
-    public sealed class RoomCell{public string Text="",Error="";}
+    public sealed class RoomCell{public string Text="",Error="";public double? Number;}
     public sealed class RoomSheet
     {
         public string Name;public readonly SortedDictionary<int,Dictionary<int,RoomCell>> Rows=new SortedDictionary<int,Dictionary<int,RoomCell>>();
@@ -50,7 +50,7 @@ namespace MedGas2024.Core
                             else if(type=="str")item.Text=raw??"";
                             else if(type=="e")item.Error="Ô Excel đang có lỗi công thức.";
                             else if(type=="b")item.Error="Ô kiểu đúng/sai, không phải mã hoặc tên phòng.";
-                            else if(!String.IsNullOrEmpty(raw)){int style;Int32.TryParse((string)cell.Attribute("s"),NumberStyles.Integer,CultureInfo.InvariantCulture,out style);
+                            else if(!String.IsNullOrEmpty(raw)){double number;if(Double.TryParse(raw,NumberStyles.Float,CultureInfo.InvariantCulture,out number))item.Number=number;int style;Int32.TryParse((string)cell.Attribute("s"),NumberStyles.Integer,CultureInfo.InvariantCulture,out style);
                                 string text,error;if(NumericCode(raw,style>=0&&style<formats.Count?formats[style]:null,out text,out error))item.Text=text;else item.Error=error;}
                             if(formula!=null&&raw==null)item.Error="Công thức chưa có kết quả lưu; mở Excel, tính lại và lưu.";
                             cells[col]=item;sheet.Columns=Math.Max(sheet.Columns,col);

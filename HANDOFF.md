@@ -1,3 +1,14 @@
+# Bàn giao 2.0.2.5
+
+Cùng nhánh **fix/rooms-numeric-batch-2.0.2.3** (PR #7). Bộ cài **releases/MrT_CAD_Toolset_2.0.2.5_Setup.exe**, ProductCode `{27257F69-A7CC-412B-87C9-FCAF5854E18C}`, SHA-256 **687EF1C86EE3B34769659F021A1F7B3A776B43614430D3DD7BA610F87EDCE94E**.
+
+- **Quản lý phòng đã đặt** (`MRTROOMLIST`, nút trong MRTROOMS; `RoomManagerForm`, `RoomManagerService`, `RoomManager.cs`): liệt kê block Mr.T_PHONG ở Model/Layout; sửa tên hiển thị, TEN_CU, TEN_MOI, TRANG_THAI, GHI_CHU, layer (tự tạo), Text height, Rộng MTEXT, màu, khung, lề, bo góc, nền che; áp hàng loạt cho dòng chọn; lọc cần kiểm tra/đã sửa; phóng tới phòng; xuất/nhập .xlsx (khớp Handle, rồi Mã phòng duy nhất; `RoomCell.Number` giữ số thật để đọc lề 0.4). Lưu = một transaction, cập nhật tag (LastText, OldName, NewName…) nên Cập nhật phòng đã gắn vẫn chạy.
+- **Nền che** là WIPEOUT theo đúng đường bao khung (cung chia đoạn), group cùng block, `DrawOrderTable.MoveBelow` block; tag lưu `Mask`, `Wipeout`. Bỏ MText background mask (tràn theo cột 2400 với tên ngắn). `UpdateDecor` tạo/vẽ lại/xóa khung và wipeout cho mọi đường (tạo, đổi tên, quản lý).
+- **Excel**: tên mới “(Chưa rõ)”, “?”, “-”… là chưa có tên mới (StatusPending), không còn bị tính Ghép. Ghép chỉ tính trong bản vẽ (`RoomNameMatch.RoomStatus`). Tùy chọn **tạo block cả cho chữ chưa có/chưa rõ trong Excel** (giữ tên cũ, đỏ, GHI_CHU) và **mọi vị trí trùng mã** bật mặc định (`RoomSettings.RepeatsDecided` chuyển cài đặt cũ).
+- Nhãn form dùng “× Text height”.
+- **Kiểm tra**: 628 PASS / 0 FAIL; native PASS (wipeout khớp khung tên ngắn với Rộng 2400, quản lý sửa tên/cao/màu/khung/nền che/layer, đổi tên sau sửa). Bản sao file tầng 4 lưu 18:08 ngày 19/11 với đúng cài đặt người dùng (sheet *Bảng tổng danh sách quy đổi*, dòng 3, cột B/C, layer Mr.T Tên phòng → Mr.T Tên phòng mới): 97/97 chữ được xử lý, 98 block, 27 cần kiểm tra (11 giữ tên cũ gồm 2 tên khoa, 15 vị trí trùng/tách), chạy lại 0, quản lý liệt kê 98, xuất/nhập Excel khớp; ảnh in thử cho thấy wipeout gọn trong khung.
+- Chưa kiểm: hộp thoại trong AutoCAD đầy đủ sau khi cài.
+
 # Bàn giao 2.0.2.4
 
 Tiếp tục trên nhánh **fix/rooms-numeric-batch-2.0.2.3** (PR #7). Bộ cài **releases/MrT_CAD_Toolset_2.0.2.4_Setup.exe**, ProductCode `{C8EB58E7-6BC6-4F8D-8CCA-A8B71D500D91}`, SHA-256 **53AAE73A7906C4EC2B6A5F3C27A120D0A5D5F4ACAC0271A4D5EEA116CBD9E955**.

@@ -23,24 +23,28 @@ namespace MedGas2024.Core
         public List<RoomEntry> Splits;
         // Plain TEXT/MTEXT directly in the space (can be replaced); false for attributes.
         public bool Direct;
-        // A 2.0.2.4 MTEXT label made for block text; with room blocks it is replaced, not counted as attached.
+        // A 2.0.2.5 MTEXT label made for block text; with room blocks it is replaced, not counted as attached.
         public bool LegacyLabel;
         public RoomNameMatch Supersedes;
         // Needs a human check (split assigned by position, split stacked, repeated code): drawn in the review colour.
         public bool Review;public string Note;
         // World position of the text, used to give split rooms to positions left to right.
         public double X,Y;
+        // Status written to TRANG_THAI, judged inside this drawing (Ghép only when old rooms here share a new name).
+        public string RoomStatus;
     }
     public sealed class RoomMatchOptions
     {
         public bool CreateLabels,AllowRepeats;
-        // Room blocks (2.0.2.4): every match becomes a Mr.T_PHONG block; direct old text is replaced.
+        // Room blocks (2.0.2.5): every match becomes a Mr.T_PHONG block; direct old text is replaced.
         public bool Blocks,ReplaceOld;
+        // Room blocks: also make a block, keeping the old name, for text with no usable Excel row (flagged for review).
+        public bool KeepUnmatched;
     }
     public static class RoomNameMatcher
     {
         public const string ActionAdopt="Gắn trực tiếp",ActionLabel="Tạo nhãn riêng",ActionNone="—",
-            ActionUpgrade="Đổi nhãn MTEXT cũ thành block",ActionBlock="Tạo block phòng (giữ chữ cũ)",ActionReplace="Thay chữ cũ bằng block",ActionOver="Tạo block (chữ cũ trong block giữ nguyên)";
+            ActionKeep="Tạo block giữ tên cũ",ActionUpgrade="Đổi nhãn MTEXT cũ thành block",ActionBlock="Tạo block phòng (giữ chữ cũ)",ActionReplace="Thay chữ cũ bằng block",ActionOver="Tạo block (chữ cũ trong block giữ nguyên)";
         public static bool SingleLineSafe(string text)
         {
             return !String.IsNullOrWhiteSpace(text)&&text.Length<=255&&text.IndexOfAny(new[]{'\r','\n'})<0
@@ -54,7 +58,7 @@ namespace MedGas2024.Core
         {
             options=options??new RoomMatchOptions();
             var hits=found.ToList();
-            foreach(var h in hits){h.Status=h.Blocked;h.Ready=false;h.Action=null;h.ExcelTargets=null;h.Splits=null;h.Supersedes=null;h.Review=false;h.Note=null;if(h.Tag==null)h.Entry=null;}
+            foreach(var h in hits){h.Status=h.Blocked;h.Ready=false;h.Action=null;h.ExcelTargets=null;h.Splits=null;h.Supersedes=null;h.Review=false;h.Note=null;h.RoomStatus=null;if(h.Tag==null)h.Entry=null;}
             var legacy=new Dictionary<string,T>(StringComparer.OrdinalIgnoreCase);
             if(options.Blocks)foreach(var h in hits.Where(h=>h.Tag!=null&&h.LegacyLabel&&!String.IsNullOrEmpty(h.Linked)))if(!legacy.ContainsKey(h.Linked))legacy[h.Linked]=h;
             var tagged=hits.Where(h=>h.Tag!=null&&!legacy.Values.Contains(h)).ToList();
@@ -91,10 +95,26 @@ namespace MedGas2024.Core
                     if(conflict!=null)h.Status="Xung đột Excel: mã cũ có nhiều tên mới ("+h.ExcelTargets+")";
                     else if(catalog.ErrorNames.Contains(group.Key))h.Status="Dòng Excel của mã này có lỗi — bấm Xem lỗi Excel";
                     else if(catalog.BlockedNames.Contains(group.Key)||(rows.Count>1&&h.Splits==null))h.Status="Tên cũ ứng với nhiều ID trong Excel";
+                    else if(rows.Count==0&&options.Blocks&&options.KeepUnmatched)
+                    {
+                        var id=RoomCatalog.Key(h.Text);
+                        if(attached.Contains(id))h.Status="ID đã gắn trong không gian này";
+                        else
+                        {
+                            h.Entry=new RoomEntry{Id=id,OldName=h.Text.Trim(),NewName="",Status=RoomCatalog.StatusNotInExcel};
+                            h.Ready=true;h.Review=true;h.Action=ActionKeep;h.Note="Chưa có trong Excel — giữ tên cũ, cần kiểm tra";
+                            h.Status="Sẵn sàng — chưa có trong Excel, giữ tên cũ (cần kiểm tra)";
+                        }
+                    }
                     else if(rows.Count==0)h.Status="Thiếu ánh xạ: không có dòng Excel cho chữ này";
                     else if(splitRows&&options.Blocks&&open.Count>1&&!given)h.Status=open.Count+" vị trí nhưng "+rows.Count+" tên mới — chọn điểm riêng cho từng phòng";
                     else if(open.Count>1&&!given&&!options.AllowRepeats)h.Status=open.Count+" vị trí cùng mã trong DWG — bật «Áp dụng mọi vị trí trùng mã» hoặc chọn điểm riêng";
                     else if((h.Splits??new List<RoomEntry>{h.Entry}).Any(r=>attached.Contains(r.Id)&&(!options.AllowRepeats||direct.Contains(r.Id))))h.Status="ID đã gắn trong không gian này";
+                    else if(String.IsNullOrWhiteSpace(desired)&&options.Blocks&&options.KeepUnmatched&&newMode&&!String.IsNullOrWhiteSpace(h.Entry.OldName))
+                    {
+                        h.Ready=true;h.Review=true;h.Action=ActionKeep;h.Note="Excel chưa rõ tên mới — giữ tên cũ, cần kiểm tra";
+                        h.Status="Sẵn sàng — Excel chưa rõ tên mới, giữ tên cũ (cần kiểm tra)";
+                    }
                     else if(String.IsNullOrWhiteSpace(desired))h.Status="Tên cần hiển thị đang trống";
                     else if(h.NeedsLabel&&!options.CreateLabels&&!options.Blocks)h.Status="Chữ trong block dùng chung — bật «Tạo nhãn riêng» để áp dụng";
                     else if(!options.Blocks&&!h.NeedsLabel&&h.SingleLine&&!SingleLineSafe(desired))h.Status="Tên mới không phù hợp với TEXT một dòng";
@@ -121,6 +141,15 @@ namespace MedGas2024.Core
                         T old;if(h.Place!=null&&legacy.TryGetValue(h.Place,out old)){h.Supersedes=old;h.Action=ActionUpgrade;}
                     }
                 }
+            }
+            // A whole-hospital sheet repeats generic new names (WC, Kho) on every floor: a merge is
+            // only real when several old rooms of this drawing get the same new name.
+            var single=hits.Where(h=>h.Ready&&h.Entry!=null&&(h.Splits==null||h.Splits.Count==1)&&h.Entry.SplitOf==null).ToList();
+            foreach(var g in single.Where(h=>!String.IsNullOrWhiteSpace(h.Entry.NewName)).GroupBy(h=>h.Entry.NewName,StringComparer.CurrentCultureIgnoreCase))
+            {
+                bool merged=g.Select(h=>RoomCatalog.MatchName(h.Entry.OldName)).Distinct(StringComparer.OrdinalIgnoreCase).Count()>1;
+                foreach(var h in g)h.RoomStatus=merged?RoomCatalog.StatusMerge:h.Entry.Status==RoomCatalog.StatusMerge?
+                    (String.Equals(RoomCatalog.MatchName(h.Entry.OldName),RoomCatalog.MatchName(h.Entry.NewName),StringComparison.CurrentCultureIgnoreCase)?RoomCatalog.StatusKeep:RoomCatalog.StatusRename):h.Entry.Status;
             }
             foreach(var entry in catalog.Unique.Values)
                 if(!attached.Contains(entry.Id)&&!names.Contains(RoomCatalog.MatchName(entry.OldName)))

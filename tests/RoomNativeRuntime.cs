@@ -184,7 +184,7 @@ public static class RoomNativeRuntime
         var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead);
         return space.Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as BlockReference).Where(b=>b!=null&&!b.IsErased&&((BlockTableRecord)tr.GetObject(b.BlockTableRecord,OpenMode.ForRead)).Name==RoomService.RoomBlockName).ToList();
     }
-    // 2.0.2.4: room blocks with attributes, rounded frame, new layer, replace direct text, split rooms.
+    // 2.0.2.5: room blocks with attributes, rounded frame, new layer, replace direct text, split rooms.
     static void RoomBlockCase(Database db,List<string> output)
     {
         const string source="ROOM_OLD_BLOCKS";const string layer="Mr.T Phòng mới thử";
@@ -209,7 +209,7 @@ public static class RoomNativeRuntime
             new RoomEntry{Id="602",OldName="602",NewName="Kho dịch truyền",ExcelRow=3},new RoomEntry{Id="602",OldName="602",NewName="Kho huyết thanh",ExcelRow=4},
             new RoomEntry{Id="603",OldName="603",NewName="Phòng trực",ExcelRow=5},
             new RoomEntry{Id="604",OldName="604",NewName="Phòng A",ExcelRow=6},new RoomEntry{Id="604",OldName="604",NewName="Phòng B",ExcelRow=7}});
-        // A 2.0.2.4 MTEXT label already made for 603 must become a block, not block 603.
+        // A 2.0.2.5 MTEXT label already made for 603 must become a block, not block 603.
         var old603=RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,source),catalog,true,new RoomMatchOptions{CreateLabels=true}).Single(h=>h.Text=="603"&&h.Ready);
         RoomService.ApplyMatches(db,db.CurrentSpaceId,new[]{old603},true,RoomCatalog.DefaultLayer,RoomCatalog.DefaultStyle,false,null);
         var legacyLabel=old603.Label;
@@ -266,7 +266,45 @@ public static class RoomNativeRuntime
             var f=((BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForRead)).Cast<ObjectId>().Select(id=>tr.GetObject(id,OpenMode.ForRead) as Polyline).Where(p=>p!=null&&p.Layer==layer).ToList();
             Check(f.Max(p=>p.GeometricExtents.MaxPoint.X-p.GeometricExtents.MinPoint.X)<widthBefore,"Frames are redrawn to fit the shorter name");
         }
-        output.Add("PASS: room blocks — new layer, height/width, upper case, frame+group, replace old text, split, rerun, switch.");
+        // 2.0.2.5: wipeout follows the frame; the manager edits blocks in place.
+        var masked=new RoomLabelStyle{Layer=layer,Height=300,Width=2400,Mask=true,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6};
+        var catalog2=RoomCatalog.Build(new[]{new RoomEntry{Id="605",OldName="605",NewName="WC"}});
+        using(var tr=db.TransactionManager.StartTransaction())
+        {
+            var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);var lt=(LayerTable)tr.GetObject(db.LayerTableId,OpenMode.ForRead);
+            var t=new DBText{TextString="605",Position=new Point3d(20000,0,0),Height=5,LayerId=lt[source]};space.AppendEntity(t);tr.AddNewlyCreatedDBObject(t,true);tr.Commit();
+        }
+        var r605=RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,source),catalog2,true,options).Where(h=>h.Ready&&h.Text=="605").ToList();
+        RoomService.ApplyBlocks(db,db.CurrentSpaceId,r605,true,masked,null);
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");
+            var tag=RoomService.ReadTag(db,b.AttributeCollection.Cast<ObjectId>().Single(id=>((AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Tag==RoomService.TagName));
+            var frame=(Polyline)tr.GetObject(db.GetObjectId(false,new Handle(Convert.ToInt64(tag.Frame,16)),0),OpenMode.ForRead);
+            var wipe=(Wipeout)tr.GetObject(db.GetObjectId(false,new Handle(Convert.ToInt64(tag.Wipeout,16)),0),OpenMode.ForRead);
+            var fe=frame.GeometricExtents;var we=wipe.GeometricExtents;
+            Check(we.MinPoint.X>=fe.MinPoint.X-1e-6&&we.MaxPoint.X<=fe.MaxPoint.X+1e-6&&we.MinPoint.Y>=fe.MinPoint.Y-1e-6&&we.MaxPoint.Y<=fe.MaxPoint.Y+1e-6&&(we.MaxPoint.X-we.MinPoint.X)>(fe.MaxPoint.X-fe.MinPoint.X)*0.95,
+                "Wipeout matches the frame of a short name (not the MTEXT column width): wipe "+we.MinPoint+"-"+we.MaxPoint+" frame "+fe.MinPoint+"-"+fe.MaxPoint);
+            Check(fe.MaxPoint.X-fe.MinPoint.X<2400,"A short name keeps a short frame even with MTEXT width 2400");
+        }
+        var listed=RoomService.ListRoomBlocks(db);
+        var row=listed.Single(x=>x.Id=="605");
+        Check(row.Name=="WC"&&row.Height==300&&row.Width==2400&&row.Mask&&row.Frame==RoomLabelStyle.FrameRounded&&listed.Count(x=>x.Id.StartsWith("60"))>=6,"Manager lists room blocks with name, size, frame and wipeout");
+        var edit=row.Copy();edit.Name="NHÀ VỆ SINH NỮ";edit.Height=200;edit.Color=3;edit.Frame=RoomLabelStyle.FrameSlot;edit.Mask=false;edit.Note="Sửa tay";edit.Layer="Mr.T Phòng sửa";
+        Check(RoomService.SaveRoomBlocks(db,new[]{edit})==1,"Manager saves one edited room");
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");var a=Attributes(tr,b);
+            var name=b.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(x=>x.Tag==RoomService.TagName);
+            var tag=RoomService.ReadTag(db,name.ObjectId);
+            Check(a[RoomService.TagName]=="NHÀ VỆ SINH NỮ"&&a[RoomService.TagNote]=="Sửa tay"&&Math.Abs(name.MTextAttribute.TextHeight-200)<1e-9&&b.ColorIndex==3&&b.Layer=="Mr.T Phòng sửa","Name, note, height, colour and a new layer are written in place");
+            Check(String.IsNullOrEmpty(tag.Wipeout)&&tag.FrameShape==RoomLabelStyle.FrameSlot&&tag.LastText=="NHÀ VỆ SINH NỮ","Wipeout removed, frame switched to slot, tag follows the edit");
+            var frame=(Polyline)tr.GetObject(db.GetObjectId(false,new Handle(Convert.ToInt64(tag.Frame,16)),0),OpenMode.ForRead);
+            Check(frame.NumberOfVertices==4&&frame.Layer=="Mr.T Phòng sửa"&&frame.ColorIndex==3,"Frame redrawn as a slot on the new layer and colour");
+        }
+        var plan2=RoomService.Inspect(db,null,false);
+        Check(plan2.Rows.Single(x=>x.RoomId=="605").Ready,"An edited room still switches old/new without being flagged as manual");
+        output.Add("PASS: room blocks — new layer, height/width, upper case, frame+group, replace old text, split, rerun, switch, wipeout, manager edits.");
     }
     // UNDO check on the active drawing: FIX builds a block with 515, APPLY labels it in its
     // own command, the script runs UNDO 1, CHECK expects the block kept and the label gone.

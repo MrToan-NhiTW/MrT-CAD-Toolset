@@ -27,7 +27,7 @@ public static class RoomRulesTests
         Check(direct.Ready&&direct.Action==RoomNameMatcher.ActionReplace,"With room blocks a direct old text is replaced");
         var place=Shared("520","30/1");var oldLabel=new RoomNameMatch{Text="620",Tag="520",Linked="30/1",LegacyLabel=true,Blocked="Đã gắn ID"};
         RoomNameMatcher.Match(new[]{place,oldLabel},catalog,true,new RoomMatchOptions{Blocks=true});
-        Check(place.Ready&&place.Supersedes==oldLabel&&place.Action==RoomNameMatcher.ActionUpgrade,"A 2.0.2.4 MTEXT label is upgraded to a block instead of blocking its room");
+        Check(place.Ready&&place.Supersedes==oldLabel&&place.Action==RoomNameMatcher.ActionUpgrade,"A 2.0.2.5 MTEXT label is upgraded to a block instead of blocking its room");
         RoomNameMatcher.Match(new[]{place,oldLabel},catalog,true,on);
         Check(!place.Ready&&place.Status.StartsWith("Đã có nhãn"),"Without room blocks the old label still counts");
         var blocks=new RoomMatchOptions{Blocks=true,CreateLabels=true};
@@ -42,6 +42,18 @@ public static class RoomRulesTests
         var r1=Shared("520","8/1");var r2=Shared("520","9/1");RoomNameMatcher.Match(new[]{r1,r2},catalog,true,new RoomMatchOptions{Blocks=true,AllowRepeats=true});
         Check(r1.Ready&&r2.Ready&&r1.Review&&r1.Note.Contains("2 vị trí"),"A repeated code applied everywhere is flagged for review");
         var plain=Shared("510","1/1");RoomNameMatcher.Match(new[]{plain},catalog,true,blocks);Check(plain.Ready&&!plain.Review,"A normal room is not flagged");
+        var pending=RoomCatalog.Build(new[]{new RoomEntry{Id="001",OldName="001",NewName="(Chưa rõ)"},new RoomEntry{Id="002",OldName="002",NewName="(Chưa rõ)"},new RoomEntry{Id="003",OldName="003",NewName="?"},new RoomEntry{Id="104",OldName="104",NewName="(Kho hồ sơ)"}});
+        Check(pending.Find("001").NewName==""&&pending.Find("001").Status==RoomCatalog.StatusPending&&pending.Find("002").Status==RoomCatalog.StatusPending&&pending.Find("003").Status==RoomCatalog.StatusPending&&pending.Find("104").NewName=="(Kho hồ sơ)","(Chưa rõ) and ? mean no new name yet, not a merge; a real name in brackets is kept");
+        var keep=new RoomMatchOptions{Blocks=true,CreateLabels=true,KeepUnmatched=true};
+        var unknown=Shared("482","4/1");var later=Shared("001","4/2");RoomNameMatcher.Match(new[]{unknown,later},pending,true,keep);
+        Check(unknown.Ready&&unknown.Review&&unknown.Action==RoomNameMatcher.ActionKeep&&unknown.Entry.Status==RoomCatalog.StatusNotInExcel&&RoomRules.Label(unknown.Entry,true,true)=="482","Text missing from Excel gets a block with its old name, flagged");
+        Check(later.Ready&&later.Review&&RoomRules.Label(later.Entry,true,true)=="001","A room whose new name is not decided keeps its old name, flagged");
+        RoomNameMatcher.Match(new[]{unknown},pending,true,blocks);Check(!unknown.Ready&&unknown.Status.StartsWith("Thiếu ánh xạ"),"Without the option missing rooms stay listed only");
+        var tagged=new RoomNameMatch{Text="482",Tag="482",Blocked="Đã gắn ID"};RoomNameMatcher.Match(new[]{Shared("482","4/1"),tagged},pending,true,keep);
+        Check(!RoomNameMatcher.Match(new[]{Shared("482","4/1"),tagged},pending,true,keep).Any(h=>h.Ready),"A kept room is not created twice");
+        var floors=RoomCatalog.Build(new[]{new RoomEntry{Id="201",OldName="201",NewName="WC NAM"},new RoomEntry{Id="401",OldName="401",NewName="WC NAM"},new RoomEntry{Id="402",OldName="402",NewName="HỘI TRƯỜNG"},new RoomEntry{Id="403",OldName="403",NewName="HỘI TRƯỜNG"}});
+        var wc=Shared("401","1/1");var hall1=Shared("402","1/2");var hall2=Shared("403","1/3");RoomNameMatcher.Match(new[]{wc,hall1,hall2},floors,true,blocks);
+        Check(floors.Find("401").Status==RoomCatalog.StatusMerge&&wc.RoomStatus==RoomCatalog.StatusRename&&hall1.RoomStatus==RoomCatalog.StatusMerge&&hall2.RoomStatus==RoomCatalog.StatusMerge,"Ghép is judged inside the drawing: WC NAM on another floor is not a merge, two halls here are");
         var none=Shared("999","1/8");run(on,new[]{none});Check(none.Status.StartsWith("Thiếu ánh xạ"),"Text without an Excel row is reported as a missing mapping");
         var p1=Shared("520","10/1");var p2=Shared("520","20/1");
         run(on,new[]{p1,p2});Check(!p1.Ready&&!p2.Ready&&p1.Status.StartsWith("2 vị trí"),"Two places with one code need an explicit choice");

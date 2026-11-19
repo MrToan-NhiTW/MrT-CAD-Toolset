@@ -9,7 +9,7 @@ namespace MedGas2024.Core
     // Choices shown above the layer review; the command re-matches the drawing when they change.
     public sealed class RoomReviewChoices
     {
-        public bool CreateLabels=true,AllowRepeats,Mask,HideSource;
+        public bool CreateLabels=true,AllowRepeats,Mask,HideSource,KeepUnmatched;
         // Set by the command: the source layer may be turned off only when every
         // label is made for text stored on that layer (never layer 0 or inherited).
         public string HideLayer;public bool CanHide;

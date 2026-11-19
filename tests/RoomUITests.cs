@@ -73,6 +73,31 @@ public static class RoomUITests
         try{remembered.Save(path);var back=RoomSettings.Load(path);Check(back.Label.Height==350&&back.Label.Frame==RoomLabelStyle.FrameSlot&&back.ExcelPath==args[0],"Settings survive a save and reload");}
         finally{System.IO.File.Delete(path);}
         Check(RoomSettings.Load(path).Label.Height==250,"Missing settings fall back to defaults");
+        var placed=new List<RoomBlockInfo>{new RoomBlockInfo{Handle="1A",Space="Model",Id="410-1",Name="PHÒNG DUYỆT THUỐC",OldName="410",NewName="Phòng duyệt thuốc",Status=RoomCatalog.StatusSplit,Note="Tách 410: cần kiểm tra",Layer="Mr.T Tên phòng mới",Height=250,Width=2400,Color=1,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,Mask=true},
+            new RoomBlockInfo{Handle="1B",Space="Model",Id="401",Name="KHO CẤP PHÁT LẺ",OldName="401",NewName="Kho cấp phát lẻ",Status=RoomCatalog.StatusRename,Note="",Layer="Mr.T Tên phòng mới",Height=250,Width=2400,Color=158,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,Mask=true}};
+        using(var manager=new RoomManagerForm(placed.Select(r=>r.Copy()).ToList(),placed,"Thử"))
+        {
+            manager.ShowInTaskbar=false;manager.StartPosition=FormStartPosition.Manual;manager.Left=-20000;manager.Show();Application.DoEvents();
+            var grid=Controls<DataGridView>(manager).Single();
+            Check(grid.Rows.Count==2&&grid.Columns.Cast<DataGridViewColumn>().Any(c=>c.HeaderText=="Lề (× Text height)")&&grid.Columns.Cast<DataGridViewColumn>().All(c=>c.SortMode==DataGridViewColumnSortMode.Automatic),"Manager lists placed rooms with sortable columns in Text height terms");
+            var filter=Controls<ComboBox>(manager).First(c=>c.Items.Contains("Cần kiểm tra"));filter.SelectedItem="Cần kiểm tra";Check(grid.Rows.Count==1,"Manager filter shows rooms to check");filter.SelectedIndex=0;
+            grid.ClearSelection();foreach(DataGridViewRow r in grid.Rows)r.Selected=true;
+            ((NumericUpDown)Field(manager,"height")).Value=300;((ComboBox)Field(manager,"frame")).SelectedItem=RoomLabelStyle.FrameSlot;((ComboBox)Field(manager,"mask")).SelectedItem="Không";
+            Buttons(manager).Single(b=>b.Text.StartsWith("Áp cho dòng")).PerformClick();
+            Check(manager.Rows.All(r=>r.Changed&&r.Height==300&&r.Frame==RoomLabelStyle.FrameSlot&&!r.Mask&&r.Width==2400),"Bulk apply changes height, frame and wipeout of the selected rooms only");
+            var xlsx=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"MrT-room-manager-"+Guid.NewGuid().ToString("N")+".xlsx");
+            try
+            {
+                RoomManagerFile.Export(xlsx,placed);
+                var sheet=RoomWorkbook.Read(xlsx).Sheets[0];
+                Check(sheet.Cell(1,1).Text=="Handle"&&sheet.Cell(2,4).Text=="PHÒNG DUYỆT THUỐC"&&sheet.Rows.Count==3,"Export writes a readable current-state sheet");
+                var back=placed.Select(r=>r.Copy()).ToList();back[1].Name="X";
+                var problems=new List<string>();
+                Check(RoomManagerFile.Import(xlsx,back,problems)==1&&back[1].Name=="KHO CẤP PHÁT LẺ"&&back[1].Changed&&problems.Count==0,"Import matches rows by handle and marks what differs");
+            }
+            finally{System.IO.File.Delete(xlsx);}
+            manager.DialogResult=DialogResult.Cancel;
+        }
         var choices=new RoomReviewChoices();int rebuilt=0;
         var firstRows=new List<RoomReviewRow>{new RoomReviewRow{Handle="1/2",Id="510",Current="510",NewName="610",Status="Chữ trong block dùng chung — bật «Tạo nhãn riêng» để áp dụng"},
             new RoomReviewRow{Handle="3",Id="511",Current="511",Status="Thiếu ánh xạ"}};

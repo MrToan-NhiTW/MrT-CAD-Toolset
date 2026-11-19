@@ -11,6 +11,7 @@ namespace MedGas2024.UI
     {
         public const string AllLayers="(Tất cả layer nội bộ)";
         public event Action InspectTag;
+        public event Action ManageRooms;
         readonly SearchCombo sourceLayer=new SearchCombo(),targetLayer=new SearchCombo{AllowNew=true},targetStyle=new SearchCombo();
         readonly TextBox file=new TextBox{ReadOnly=true,Width=280},search=new TextBox{Width=230};
         readonly ComboBox sheet=Combo(),oldCol=Combo(),newCol=Combo(),idCol=Combo(),frame=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=150};
@@ -21,7 +22,7 @@ namespace MedGas2024.UI
             radius=new NumericUpDown{Minimum=0,Maximum=5,DecimalPlaces=2,Increment=.1M,Value=.6M,Width=60},
             color=new NumericUpDown{Minimum=1,Maximum=255,Value=158,Width=60},reviewColor=new NumericUpDown{Minimum=1,Maximum=255,Value=1,Width=60};
         readonly CheckBox showNew=new CheckBox{Text="Hiển thị tên mới",AutoSize=true},upper=new CheckBox{Text="CHỮ HOA",AutoSize=true,Checked=true},
-            replace=new CheckBox{Text="Gộp chữ cũ ngoài block vào block mới",AutoSize=true,Checked=true},mask=new CheckBox{Text="Nền che",AutoSize=true};
+            replace=new CheckBox{Text="Gộp chữ cũ ngoài block vào block mới",AutoSize=true,Checked=true},mask=new CheckBox{Text="Nền che (wipeout theo khung)",AutoSize=true};
         readonly DataGridView grid=new DataGridView{Dock=DockStyle.Fill,ReadOnly=true,AutoGenerateColumns=false,AllowUserToAddRows=false,AllowUserToDeleteRows=false,RowHeadersVisible=false,SelectionMode=DataGridViewSelectionMode.FullRowSelect,MultiSelect=false};
         readonly Label state=new Label{Dock=DockStyle.Fill,AutoEllipsis=true},count=new Label{AutoSize=true,Margin=new Padding(8,7,0,0)};
         RoomWorkbook book;RoomCatalog catalog;bool loading;
@@ -36,7 +37,7 @@ namespace MedGas2024.UI
             Action<RoomCatalog,bool,string,RoomLabelStyle,RoomSettings> scan,RoomSettings remembered=null,Action<RoomSettings> store=null)
         {
             UiTheme.Attach(this);settings=remembered??new RoomSettings();save=store;
-            Text="Mr.T Tên phòng | 2.0.2.4";Font=UiStyle.Body();Size=new Size(1240,840);
+            Text="Mr.T Tên phòng | 2.0.2.5";Font=UiStyle.Body();Size=new Size(1240,840);
             MinimumSize=new Size(1000,720);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=9};
             foreach(int pixels in new[]{36,39,80,-1,46,74,46,46,46})
@@ -58,8 +59,8 @@ namespace MedGas2024.UI
             root.Controls.Add(layerRow,0,4);
             var look=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=true,AutoScroll=true};
             frame.Items.AddRange(RoomLabelStyle.Frames);frame.SelectedIndex=0;
-            Field(look,"Cao chữ",height);Field(look,"Rộng MTEXT (0 = tự do)",width);look.Controls.Add(upper);look.Controls.Add(mask);
-            Field(look,"Khung",frame);Field(look,"Lề × cao chữ",pad);Field(look,"Bo góc × cao chữ",radius);Field(look,"Màu",color);Field(look,"Màu cần kiểm tra",reviewColor);look.Controls.Add(replace);
+            Field(look,"Text height",height);Field(look,"Rộng MTEXT (0 = tự do)",width);look.Controls.Add(upper);look.Controls.Add(mask);
+            Field(look,"Khung",frame);Field(look,"Lề chữ–khung (× Text height)",pad);Field(look,"Bo góc (× Text height)",radius);Field(look,"Màu",color);Field(look,"Màu cần kiểm tra",reviewColor);look.Controls.Add(replace);
             root.Controls.Add(look,0,5);
             var options=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoScroll=true};
             Field(options,"Tìm trong danh sách Excel",search);options.Controls.Add(count);options.Controls.Add(showNew);root.Controls.Add(options,0,6);
@@ -76,7 +77,8 @@ namespace MedGas2024.UI
             var run=new Button{Text="Cập nhật phòng đã gắn…",AutoSize=true};
             var close=new Button{Text="Đóng",AutoSize=true};
             var info=new Button{Text="Xem ID của chữ…",AutoSize=true};info.Click+=delegate{if(InspectTag!=null)Guard(InspectTag);};
-            actions.Controls.AddRange(new Control[]{add,locate,auto,run,info,close});root.Controls.Add(actions,0,7);root.Controls.Add(state,0,8);
+            var manage=new Button{Text="Quản lý phòng đã đặt…",AutoSize=true};manage.Click+=delegate{if(ManageRooms!=null){Remember();Guard(ManageRooms);}};
+            actions.Controls.AddRange(new Control[]{add,locate,auto,run,manage,info,close});root.Controls.Add(actions,0,7);root.Controls.Add(state,0,8);
             state.Text="Chọn Excel và nạp danh sách. Chọn một phòng để tìm chữ hoặc gắn tại điểm. Để gắn hàng loạt, chọn layer chữ cũ rồi rà soát.";
             locate.Click+=delegate{Guard(()=>{var row=SelectedRoom();Remember();if(find(row,showNew.Checked,SourceLayer,LabelStyle))NextRoom();});};
             auto.Click+=delegate{Guard(()=>{if(catalog==null)throw new ArgumentException("Hãy nạp danh sách Excel.");
@@ -265,9 +267,10 @@ namespace MedGas2024.UI
             root.Controls.Add(buttons,0,4);AcceptButton=ok;CancelButton=cancel;
             if(choices!=null)
             {
-                var repeats=new CheckBox{Text="Áp dụng mọi vị trí trùng mã (mỗi vị trí một block cùng tên mới)",AutoSize=true,Checked=choices.AllowRepeats};
+                var repeats=new CheckBox{Text="Áp dụng mọi vị trí trùng mã (tô màu cần kiểm tra)",AutoSize=true,Checked=choices.AllowRepeats};
+                var keep=new CheckBox{Text="Tạo block cả cho chữ chưa có / chưa rõ tên trong Excel (giữ tên cũ, tô màu cần kiểm tra)",AutoSize=true,Checked=choices.KeepUnmatched};
                 var hide=new CheckBox{AutoSize=true,Checked=choices.HideSource};
-                choicePanel.Controls.AddRange(new Control[]{repeats,hide});
+                choicePanel.Controls.AddRange(new Control[]{repeats,keep,hide});
                 Action hideText=()=>{
                     hide.Enabled=choices.CanHide;if(!choices.CanHide)hide.Checked=false;
                     hide.Text=choices.CanHide?"Tắt layer «"+choices.HideLayer+"» sau khi áp dụng (ẩn cả đối tượng khác trên layer này)":
@@ -275,11 +278,11 @@ namespace MedGas2024.UI
                 };
                 hideText();
                 EventHandler changed=delegate{
-                    choices.AllowRepeats=repeats.Checked;
+                    choices.AllowRepeats=repeats.Checked;choices.KeepUnmatched=keep.Checked;
                     if(rebuild!=null){var page=rebuild(choices);this.rows=page.Rows;summaryLabel.Text=page.Summary;}
                     hideText();Refill();
                 };
-                repeats.CheckedChanged+=changed;
+                repeats.CheckedChanged+=changed;keep.CheckedChanged+=changed;
                 hide.CheckedChanged+=delegate{choices.HideSource=hide.Checked;};
             }
             query.TextChanged+=delegate{Refill();};filter.SelectedIndexChanged+=delegate{Refill();};

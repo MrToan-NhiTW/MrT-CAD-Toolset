@@ -7,7 +7,7 @@ using MedGas2024.Core;
 
 namespace MedGas2024.Engine
 {
-    // Room labels as a block with attributes (2.0.2.4): the visible name plus ID,
+    // Room labels as a block with attributes (2.0.2.5): the visible name plus ID,
     // old name, new name, status and a free note, so the data shows in Properties,
     // EATTEDIT and DATAEXTRACTION. A rounded frame polyline on the same layer is
     // grouped with the block and redrawn when the name changes.
@@ -76,7 +76,6 @@ namespace MedGas2024.Engine
             {
                 m.TextStyleId=styleId;m.Normal=normal;m.Location=center;m.Direction=direction;m.Attachment=AttachmentPoint.MiddleCenter;
                 m.TextHeight=style.Height;m.Width=style.Width>0?style.Width:0;m.Contents=Literal(display);
-                if(style.Mask){m.BackgroundFill=true;m.UseBackgroundColor=true;m.BackgroundScaleFactor=1.15;}
                 name.MTextAttribute=m;
             }
             name.UpdateMTextAttribute();
@@ -112,11 +111,11 @@ namespace MedGas2024.Engine
             return new Extents2d(local.Min(p=>p.X),local.Min(p=>p.Y),local.Max(p=>p.X),local.Max(p=>p.Y));
         }
 
-        // Closed LWPOLYLINE around the name: rounded rectangle, slot or rectangle.
-        static void DrawFrame(Polyline pl,Matrix3d frame,Vector3d normal,Extents2d box,double height,string shape,double pad,double radius)
+        // Outline around the name in label-local coordinates: (x, y, bulge to next vertex).
+        static List<Tuple<double,double,double>> Outline(Extents2d box,double height,string shape,double pad,double radius)
         {
             double hw=(box.MaxPoint.X-box.MinPoint.X)/2+pad*height,hh=(box.MaxPoint.Y-box.MinPoint.Y)/2+pad*height;
-            frame=frame*Matrix3d.Displacement(new Vector3d((box.MinPoint.X+box.MaxPoint.X)/2,(box.MinPoint.Y+box.MaxPoint.Y)/2,0));
+            double cx=(box.MinPoint.X+box.MaxPoint.X)/2,cy=(box.MinPoint.Y+box.MaxPoint.Y)/2;
             var pts=new List<Tuple<double,double,double>>();
             const double quarter=0.41421356237309503; // tan(22.5°): 90° arc
             if(shape==RoomLabelStyle.FrameSlot)
@@ -126,21 +125,23 @@ namespace MedGas2024.Engine
             }
             else
             {
-                double r=shape==RoomLabelStyle.FrameRect?0:Math.Min(radius*height,Math.Min(hw,hh)*0.999);
-                if(r<=1e-9)
-                {
-                    pts.Add(Tuple.Create(-hw,-hh,0d));pts.Add(Tuple.Create(hw,-hh,0d));pts.Add(Tuple.Create(hw,hh,0d));pts.Add(Tuple.Create(-hw,hh,0d));
-                }
+                double r=shape==RoomLabelStyle.FrameRect||shape==RoomLabelStyle.FrameNone?0:Math.Min(radius*height,Math.Min(hw,hh)*0.999);
+                if(r<=1e-9){pts.Add(Tuple.Create(-hw,-hh,0d));pts.Add(Tuple.Create(hw,-hh,0d));pts.Add(Tuple.Create(hw,hh,0d));pts.Add(Tuple.Create(-hw,hh,0d));}
                 else
                 {
                     pts.Add(Tuple.Create(-hw+r,-hh,0d));pts.Add(Tuple.Create(hw-r,-hh,quarter));pts.Add(Tuple.Create(hw,-hh+r,0d));pts.Add(Tuple.Create(hw,hh-r,quarter));
                     pts.Add(Tuple.Create(hw-r,hh,0d));pts.Add(Tuple.Create(-hw+r,hh,quarter));pts.Add(Tuple.Create(-hw,hh-r,0d));pts.Add(Tuple.Create(-hw,-hh+r,quarter));
                 }
             }
+            return pts.Select(p=>Tuple.Create(p.Item1+cx,p.Item2+cy,p.Item3)).ToList();
+        }
+
+        // Closed LWPOLYLINE on the outline; rewrites a database polyline in place.
+        static void DrawFrame(Polyline pl,Matrix3d frame,Vector3d normal,List<Tuple<double,double,double>> pts)
+        {
             var toPlane=Matrix3d.WorldToPlane(normal);
             pl.Normal=normal;
             double elevation=0;int old=pl.NumberOfVertices;
-            // A database polyline cannot lose all its vertices: rewrite in place, then add or trim.
             for(int i=0;i<pts.Count;i++)
             {
                 var p=new Point3d(pts[i].Item1,pts[i].Item2,0).TransformBy(frame).TransformBy(toPlane);
@@ -152,17 +153,108 @@ namespace MedGas2024.Engine
             pl.Elevation=elevation;pl.Closed=true;
         }
 
+        // Polygon for the WIPEOUT: the same outline with arcs split into short chords, closed.
+        static Point2dCollection Polygon(List<Tuple<double,double,double>> pts)
+        {
+            var result=new Point2dCollection();
+            for(int i=0;i<pts.Count;i++)
+            {
+                var a=new Point2d(pts[i].Item1,pts[i].Item2);var b=new Point2d(pts[(i+1)%pts.Count].Item1,pts[(i+1)%pts.Count].Item2);double bulge=pts[i].Item3;
+                result.Add(a);
+                if(Math.Abs(bulge)<1e-9)continue;
+                double sweep=4*Math.Atan(bulge),chord=a.GetDistanceTo(b);if(chord<1e-12)continue;
+                double radius=chord/(2*Math.Sin(Math.Abs(sweep)/2));
+                var mid=new Point2d((a.X+b.X)/2,(a.Y+b.Y)/2);var dir=(b-a).GetNormal();var left=new Vector2d(-dir.Y,dir.X);
+                double sagitta=radius-Math.Sqrt(Math.Max(0,radius*radius-chord*chord/4));
+                var center=mid+left*((bulge>0?1:-1)*(radius-sagitta));
+                double start=Math.Atan2(a.Y-center.Y,a.X-center.X);int steps=Math.Max(4,(int)Math.Ceiling(Math.Abs(sweep)/(Math.PI/16)));
+                for(int k=1;k<steps;k++){double t=start+sweep*k/steps;result.Add(new Point2d(center.X+radius*Math.Cos(t),center.Y+radius*Math.Sin(t)));}
+            }
+            result.Add(result[0]);
+            return result;
+        }
+
+        static ObjectId FromHandle(Database db,string handle)
+        {
+            long value;ObjectId id;
+            if(String.IsNullOrEmpty(handle)||!Int64.TryParse(handle,System.Globalization.NumberStyles.HexNumber,System.Globalization.CultureInfo.InvariantCulture,out value)||
+                !db.TryGetObjectId(new Handle(value),out id)||id.IsErased)return ObjectId.Null;
+            return id;
+        }
+
+        static Group RoomGroup(Database db,Transaction tr,BlockReference br,string id)
+        {
+            using(var reactors=br.GetPersistentReactorIds())
+                foreach(ObjectId r in reactors){if(r.IsErased)continue;var g=tr.GetObject(r,OpenMode.ForRead) as Group;if(g!=null&&g.Description!=null&&g.Description.StartsWith("Mr.T phòng"))return g;}
+            var groups=(DBDictionary)tr.GetObject(db.GroupDictionaryId,OpenMode.ForWrite);
+            var created=new Group("Mr.T phòng "+id,true);groups.SetAt("*",created);tr.AddNewlyCreatedDBObject(created,true);
+            created.Append(br.ObjectId);return created;
+        }
+
+        // Creates, redraws or removes the frame and the WIPEOUT of one room block from its tag,
+        // keeps them grouped with the block, the wipeout just below the block. Updates tag handles.
+        static void UpdateDecor(Database db,Transaction tr,BlockReference br,AttributeReference name,RoomTag tag)
+        {
+            var space=(BlockTableRecord)tr.GetObject(br.OwnerId,OpenMode.ForWrite);
+            Point3d center;Vector3d direction,normal;double height;
+            using(var m=name.MTextAttribute){center=m.Location;direction=m.Direction;normal=m.Normal;height=m.TextHeight;}
+            var local=RoomFrame(center,direction,normal);
+            string shape=String.IsNullOrEmpty(tag.FrameShape)?RoomLabelStyle.FrameNone:tag.FrameShape;
+            var outline=Outline(NameBox(name,local),height,shape,tag.FramePad,tag.FrameRadius);
+            Group group=null;
+            var frameId=FromHandle(db,tag.Frame);
+            if(shape==RoomLabelStyle.FrameNone)
+            {
+                if(!frameId.IsNull){tr.GetObject(frameId,OpenMode.ForWrite).Erase();}
+                tag.Frame=null;
+            }
+            else
+            {
+                Polyline pl=frameId.IsNull?null:tr.GetObject(frameId,OpenMode.ForWrite) as Polyline;
+                if(pl==null)
+                {
+                    pl=new Polyline();pl.SetDatabaseDefaults(db);DrawFrame(pl,local,normal,outline);
+                    space.AppendEntity(pl);tr.AddNewlyCreatedDBObject(pl,true);
+                    group=group??RoomGroup(db,tr,br,tag.Id);group.UpgradeOpen();group.Append(pl.ObjectId);
+                }
+                else DrawFrame(pl,local,normal,outline);
+                pl.LayerId=br.LayerId;pl.Color=br.Color;tag.Frame=pl.ObjectId.Handle.ToString();
+            }
+            var wipeId=FromHandle(db,tag.Wipeout);
+            if(!tag.Mask)
+            {
+                if(!wipeId.IsNull)tr.GetObject(wipeId,OpenMode.ForWrite).Erase();
+                tag.Wipeout=null;
+            }
+            else
+            {
+                var wipe=wipeId.IsNull?null:tr.GetObject(wipeId,OpenMode.ForWrite) as Wipeout;
+                bool created=wipe==null;
+                if(created){wipe=new Wipeout();wipe.SetDatabaseDefaults(db);}
+                wipe.SetFrom(Polygon(outline),Vector3d.ZAxis);wipe.TransformBy(local);
+                if(created)
+                {
+                    space.AppendEntity(wipe);tr.AddNewlyCreatedDBObject(wipe,true);
+                    group=group??RoomGroup(db,tr,br,tag.Id);group.UpgradeOpen();group.Append(wipe.ObjectId);
+                    var order=(DrawOrderTable)tr.GetObject(space.DrawOrderTableId,OpenMode.ForWrite);
+                    order.MoveBelow(new ObjectIdCollection(new[]{wipe.ObjectId}),br.ObjectId);
+                }
+                wipe.LayerId=br.LayerId;tag.Wipeout=wipe.ObjectId.Handle.ToString();
+            }
+        }
+
         static string Status(RoomEntry entry)
         {
             return String.IsNullOrEmpty(entry.Status)?RoomCatalog.StatusRename:entry.Status;
         }
 
-        // Creates one Mr.T_PHONG insert (+ frame, grouped) and returns the visible name attribute.
+        // Creates one Mr.T_PHONG insert (+ frame and wipeout, grouped) and returns the visible name attribute.
         static ObjectId CreateRoomBlock(Database db,Transaction tr,BlockTableRecord space,RoomEntry entry,bool newMode,RoomLabelStyle style,
-            Tuple<ObjectId,ObjectId> target,ObjectId def,Point3d center,Vector3d direction,Vector3d normal,string source,string oldText,bool review=false,string note=null)
+            Tuple<ObjectId,ObjectId> target,ObjectId def,Point3d center,Vector3d direction,Vector3d normal,string source,string oldText,bool review=false,string note=null,string status=null)
         {
             short color=(short)(review?style.ReviewColor:style.Color);
-            string display=RoomRules.Display(entry,newMode,style.Upper);
+            var statusText=String.IsNullOrEmpty(status)?Status(entry):status;
+            string display=RoomRules.Label(entry,newMode,style.Upper);
             if(String.IsNullOrWhiteSpace(display))throw new InvalidOperationException("Tên cần hiển thị của "+entry.Id+" đang trống.");
             normal=normal.Length<1e-12?Vector3d.ZAxis:normal.GetNormal();
             direction=(direction-normal*direction.DotProduct(normal));direction=direction.Length<1e-12?Vector3d.XAxis:direction.GetNormal();
@@ -170,7 +262,7 @@ namespace MedGas2024.Engine
             var br=new BlockReference(center,def){Normal=normal,Rotation=Math.Atan2(ocs.Y,ocs.X),LayerId=target.Item1};
             br.SetDatabaseDefaults(db);br.LayerId=target.Item1;br.ColorIndex=color;
             space.AppendEntity(br);tr.AddNewlyCreatedDBObject(br,true);
-            var values=new Dictionary<string,string>{{TagId,entry.Id},{TagOld,oldText??entry.OldName},{TagNew,entry.NewName},{TagStatus,Status(entry)},{TagNote,note??""}};
+            var values=new Dictionary<string,string>{{TagId,entry.Id},{TagOld,oldText??entry.OldName},{TagNew,entry.NewName},{TagStatus,statusText},{TagNote,note??""}};
             AttributeReference name=null;
             var definition=(BlockTableRecord)tr.GetObject(def,OpenMode.ForRead);
             foreach(ObjectId id in definition)
@@ -185,23 +277,15 @@ namespace MedGas2024.Engine
             if(name==null)throw new InvalidOperationException("Block "+RoomBlockName+" thiếu thuộc tính "+TagName+".");
             if(!name.IsMTextAttribute)throw new InvalidOperationException("Thuộc tính "+TagName+" của block "+RoomBlockName+" cần là MTEXT nhiều dòng.");
             WriteName(name,display,style,center,direction,normal,target.Item2);
-            ObjectId frameId=ObjectId.Null;
-            if(style.Frame!=RoomLabelStyle.FrameNone)
-            {
-                var pl=new Polyline();pl.SetDatabaseDefaults(db);pl.LayerId=target.Item1;pl.ColorIndex=color;
-                var local=RoomFrame(center,direction,normal);DrawFrame(pl,local,normal,NameBox(name,local),style.Height,style.Frame,style.Pad,style.Radius);
-                space.AppendEntity(pl);tr.AddNewlyCreatedDBObject(pl,true);frameId=pl.ObjectId;
-                var groups=(DBDictionary)tr.GetObject(db.GroupDictionaryId,OpenMode.ForWrite);
-                var g=new Group("Mr.T phòng "+entry.Id,true);groups.SetAt("*",g);tr.AddNewlyCreatedDBObject(g,true);
-                g.Append(new ObjectIdCollection(new[]{br.ObjectId,frameId}));
-            }
-            Save(name,tr,new RoomTag{Id=entry.Id,Original=entry.OldName,OldName=entry.OldName,NewName=entry.NewName,LastText=display,ShowingNew=newMode,
-                Source=source,Upper=style.Upper,Frame=frameId.IsNull?null:frameId.Handle.ToString(),FrameShape=frameId.IsNull?null:style.Frame,
-                FramePad=style.Pad,FrameRadius=style.Radius,Status=Status(entry)});
+            var tag=new RoomTag{Id=entry.Id,Original=entry.OldName,OldName=entry.OldName,NewName=entry.NewName,LastText=display,ShowingNew=newMode,
+                Source=source,Upper=style.Upper,FrameShape=style.Frame==RoomLabelStyle.FrameNone?null:style.Frame,
+                FramePad=style.Pad,FrameRadius=style.Radius,Mask=style.Mask,Status=statusText};
+            if(style.Frame!=RoomLabelStyle.FrameNone||style.Mask)UpdateDecor(db,tr,br,name,tag);
+            Save(name,tr,tag);
             return name.ObjectId;
         }
 
-        // After a name switch: refresh the other attributes and redraw the frame.
+        // After a name switch: refresh the other attributes and redraw the frame and wipeout.
         static void RefreshRoomBlock(Database db,Transaction tr,AttributeReference name,RoomTag tag,RoomEntry entry)
         {
             var br=tr.GetObject(name.OwnerId,OpenMode.ForRead) as BlockReference;
@@ -212,14 +296,7 @@ namespace MedGas2024.Engine
                 string value=ar.Tag==TagNew?entry.NewName:ar.Tag==TagStatus&&!String.IsNullOrEmpty(entry.Status)?entry.Status:null;
                 if(value!=null&&ar.TextString!=value){ar.UpgradeOpen();ar.TextString=value;}
             }
-            if(String.IsNullOrEmpty(tag.Frame))return;
-            long value2;ObjectId frameId;
-            if(!Int64.TryParse(tag.Frame,System.Globalization.NumberStyles.HexNumber,System.Globalization.CultureInfo.InvariantCulture,out value2)||
-                !db.TryGetObjectId(new Handle(value2),out frameId)||frameId.IsErased)return;
-            var pl=tr.GetObject(frameId,OpenMode.ForWrite) as Polyline;if(pl==null)return;
-            Point3d center;Vector3d direction,normal;
-            using(var m=name.MTextAttribute){center=m.Location;direction=m.Direction;normal=m.Normal;
-                var local=RoomFrame(center,direction,normal);DrawFrame(pl,local,normal,NameBox(name,local),m.TextHeight,tag.FrameShape??RoomLabelStyle.FrameRounded,tag.FramePad,tag.FrameRadius);}
+            if(!String.IsNullOrEmpty(tag.Frame)||!String.IsNullOrEmpty(tag.Wipeout)){UpdateDecor(db,tr,br,name,tag);Save(name,tr,tag);}
         }
 
         static Tuple<ObjectId,ObjectId> ResolveLabelTarget(Database db,Transaction tr,RoomLabelStyle style)
@@ -267,7 +344,7 @@ namespace MedGas2024.Engine
                     for(int k=0;k<rooms.Count;k++)
                     {
                         var at=worldCenter+up*((rooms.Count-1)/2.0-k)*step;
-                        hit.Label=CreateRoomBlock(db,tr,space,rooms[k],newMode,style,target,def,at,worldDirection,worldNormal,replace?null:hit.Address,hit.Text,hit.Review,hit.Note);
+                        hit.Label=CreateRoomBlock(db,tr,space,rooms[k],newMode,style,target,def,at,worldDirection,worldNormal,replace?null:hit.Address,hit.Text,hit.Review,hit.Note,rooms.Count==1?hit.RoomStatus:null);
                         result.Labels++;
                     }
                     var superseded=hit.Supersedes as RoomHit;
