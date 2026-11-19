@@ -20,7 +20,7 @@ namespace MedGas2024.UI
         public DrawingLayerInfo Selected{get{return accepted??browser.Selected;}}
         public PipePickerForm(List<DrawingLayerInfo> rows,int selectedCount,ScaleContext context=null)
         {UiTheme.Attach(this);
-            Text="Mr.T Gán nhanh thuộc tính ống | 2.0.2.2";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1120,760);MinimumSize=new Size(1000,700);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
+            Text="Mr.T Gán nhanh thuộc tính ống | 2.0.2.3";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1120,760);MinimumSize=new Size(1000,700);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),ColumnCount=1,RowCount=6};root.RowStyles.Add(new RowStyle(SizeType.Absolute,56));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,106));root.RowStyles.Add(new RowStyle(SizeType.Absolute,72));root.RowStyles.Add(new RowStyle(SizeType.Absolute,44));root.RowStyles.Add(new RowStyle(SizeType.Absolute,22));Controls.Add(root);
             root.Controls.Add(new Label{Text="1. Gõ tìm hệ/cỡ trong DWG → 2. Chọn dòng → 3. Gán cho đường ống.\r\n"+(selectedCount>0?"Đã chọn sẵn "+selectedCount+" đối tượng; tool sẽ lọc các đường hợp lệ.":"Chưa chọn sẵn; sau khi bấm nút sẽ chọn trên bản vẽ."),Dock=DockStyle.Fill},0,0);
             browser=new DrawingBrowser(rows);browser.SelectionChanged+=delegate{Availability();};browser.RowActivated+=delegate{if(apply.Enabled)apply.PerformClick();};root.Controls.Add(browser,0,1);

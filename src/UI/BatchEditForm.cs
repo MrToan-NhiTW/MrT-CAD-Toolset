@@ -15,7 +15,7 @@ namespace MedGas2024.UI
         public BatchEditForm(List<DrawingLayerInfo> selected,List<DrawingLayerInfo> catalog,Func<int,int?> chooseColor=null)
         {UiTheme.Attach(this);
             rows=selected;this.catalog=catalog;if(rows.Count==0)throw new ArgumentException("Chọn ít nhất một dòng.");var row=rows[0];var parts=LayerParts.Read(row);
-            Text="Mr.T Sửa "+rows.Count+" dòng trong DWG | 2.0.2.2";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1180,850);MinimumSize=new Size(1060,780);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
+            Text="Mr.T Sửa "+rows.Count+" dòng trong DWG | 2.0.2.3";Font=UiStyle.Body();AutoScaleMode=AutoScaleMode.Dpi;Size=new Size(1180,850);MinimumSize=new Size(1060,780);StartPosition=FormStartPosition.CenterParent;BackColor=Color.FromArgb(245,247,250);
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),ColumnCount=1,RowCount=5};root.RowStyles.Add(new RowStyle(SizeType.Absolute,54));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,72));root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));root.RowStyles.Add(new RowStyle(SizeType.Absolute,22));Controls.Add(root);
             root.Controls.Add(new Label{Text="SỬA "+rows.Count+" LAYER ĐANG CHỌN\r\nChỉ tích các mục muốn đổi. Giá trị ban đầu: "+row.LayerName+"; mục chưa tích giữ nguyên.",Dock=DockStyle.Fill,Font=UiStyle.Body()},0,0);
             var split=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1};split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,55));split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,45));root.Controls.Add(split,0,1);
