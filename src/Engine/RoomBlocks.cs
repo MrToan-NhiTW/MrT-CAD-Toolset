@@ -70,15 +70,66 @@ namespace MedGas2024.Engine
         // Writes the visible name into the multiline attribute with the chosen height/width.
         static void WriteName(AttributeReference name,string display,RoomLabelStyle style,Point3d center,Vector3d direction,Vector3d normal,ObjectId styleId)
         {
-            // UpdateMTextAttribute re-applies the attribute's own height, so set it first.
-            name.TextStyleId=styleId;name.Height=style.Height;name.Justify=AttachmentPoint.MiddleCenter;name.AlignmentPoint=center;
+            name.TextStyleId=styleId;
+            LayoutName(name.Database,name,display,style.Height,style.Width,style.MaxLines,style.WidthFactor,center,direction,normal);
+        }
+
+        static string NameContents(string display,double widthFactor)
+        {
+            return Factor(Literal(display),widthFactor);
+        }
+        static string Factor(string contents,double widthFactor)
+        {
+            return Math.Abs(widthFactor-1)<1e-9?contents:"{\\W"+widthFactor.ToString("0.###",System.Globalization.CultureInfo.InvariantCulture)+";"+contents+"}";
+        }
+        static double Measure(Database db,ObjectId styleId,double height,double widthFactor,string text)
+        {
+            using(var m=new MText())
+            {
+                m.SetDatabaseDefaults(db);m.TextStyleId=styleId;m.TextHeight=height;m.Width=0;m.Contents=NameContents(text,widthFactor);
+                double w=m.ActualWidth;return w>0?w:text.Length*height*0.75*widthFactor;
+            }
+        }
+        // Column width for a name: Fixed width when set; otherwise the narrowest column that keeps the
+        // name within Max lines (0 = one line). Words are never split.
+        // Lines of a name for Max lines: whole words, as few lines as read well (about
+        // LineTarget × Text height each, at most maxLines), balanced to the narrowest column.
+        public static string[] NameLines(Database db,ObjectId styleId,string display,double height,int maxLines,double widthFactor)
+        {
+            var words=RoomLayout.Words(display);
+            if(maxLines<=1||words.Length<=1)return new[]{RoomLayout.Plain(display)};
+            var widths=words.Select(w=>Measure(db,styleId,height,widthFactor,w)).ToList();
+            double space=Math.Max(0,Measure(db,styleId,height,widthFactor,"x x")-Measure(db,styleId,height,widthFactor,"xx"));
+            double single=Measure(db,styleId,height,widthFactor,display);
+            int lines=Math.Max(1,Math.Min(maxLines,(int)Math.Ceiling(single/(RoomLayout.LineTarget*height))));
+            if(lines<=1)return new[]{RoomLayout.Plain(display)};
+            var starts=RoomLayout.Breaks(widths,space,lines);
+            return starts.Select((s,i)=>String.Join(" ",words.Skip(s).Take((i+1<starts.Length?starts[i+1]:words.Length)-s))).ToArray();
+        }
+        // Text, height, width (Max lines / Fixed width) and Width factor of the name attribute.
+        static void LayoutName(Database db,AttributeReference name,string display,double height,double fixedWidth,int maxLines,double widthFactor,Point3d center,Vector3d direction,Vector3d normal)
+        {
+            if(!(widthFactor>0))widthFactor=1;
+            // UpdateMTextAttribute re-applies the attribute's own height and justification, so set them first.
+            name.Height=height;name.Justify=AttachmentPoint.MiddleCenter;name.AlignmentPoint=center;
+            // Max lines: the tool places the line breaks itself (exact line count); Fixed width: AutoCAD wraps.
+            double width=fixedWidth>0?fixedWidth:0;
+            string contents=fixedWidth>0?NameContents(display,widthFactor):
+                Factor(String.Join("\\P",NameLines(db,name.TextStyleId,display,height,maxLines,widthFactor).Select(Literal)),widthFactor);
             using(var m=name.MTextAttribute)
             {
-                m.TextStyleId=styleId;m.Normal=normal;m.Location=center;m.Direction=direction;m.Attachment=AttachmentPoint.MiddleCenter;
-                m.TextHeight=style.Height;m.Width=style.Width>0?style.Width:0;m.Contents=Literal(display);
+                m.TextStyleId=name.TextStyleId;m.Normal=normal;m.Location=center;m.Direction=direction;m.Attachment=AttachmentPoint.MiddleCenter;
+                m.TextHeight=height;m.Width=width;m.Contents=contents;
                 name.MTextAttribute=m;
             }
             name.UpdateMTextAttribute();
+        }
+        static void Relayout(Database db,AttributeReference name,string display,RoomTag tag)
+        {
+            Point3d center;Vector3d direction,normal;double height,width;
+            using(var m=name.MTextAttribute){center=m.Location;direction=m.Direction;normal=m.Normal;height=m.TextHeight;width=m.Width;}
+            if(!tag.LayoutSet){tag.LayoutSet=true;tag.FixedWidth=width;tag.MaxLines=0;tag.WidthFactor=1;}
+            LayoutName(db,name,display,height,tag.FixedWidth,tag.MaxLines,tag.WidthFactor>0?tag.WidthFactor:1,center,direction,normal);
         }
 
         // Box of the visible name in its own plane (local min/max around the label
@@ -182,10 +233,25 @@ namespace MedGas2024.Engine
             return id;
         }
 
-        static Group RoomGroup(Database db,Transaction tr,BlockReference br,string id)
+        static Group FindRoomGroup(Transaction tr,BlockReference br)
         {
             using(var reactors=br.GetPersistentReactorIds())
-                foreach(ObjectId r in reactors){if(r.IsErased)continue;var g=tr.GetObject(r,OpenMode.ForRead) as Group;if(g!=null&&g.Description!=null&&g.Description.StartsWith("Mr.T phòng"))return g;}
+                foreach(ObjectId r in reactors){if(r.IsNull||r.IsErased)continue;var g=tr.GetObject(r,OpenMode.ForRead) as Group;if(g!=null&&g.Description!=null&&g.Description.StartsWith("Mr.T phòng"))return g;}
+            return null;
+        }
+        // The frame polyline and wipeout grouped with this block, in the same space.
+        static void DecorMembers(Transaction tr,BlockReference br,Group group,out Polyline frame,out Wipeout wipe)
+        {
+            frame=null;wipe=null;if(group==null)return;
+            foreach(var id in group.GetAllEntityIds())
+            {
+                if(id==br.ObjectId||id.IsErased)continue;var e=tr.GetObject(id,OpenMode.ForRead) as Entity;if(e==null||e.OwnerId!=br.OwnerId)continue;
+                if(frame==null&&e is Polyline)frame=(Polyline)e;else if(wipe==null&&e is Wipeout)wipe=(Wipeout)e;
+            }
+        }
+        static Group RoomGroup(Database db,Transaction tr,BlockReference br,string id)
+        {
+            var found=FindRoomGroup(tr,br);if(found!=null)return found;
             var groups=(DBDictionary)tr.GetObject(db.GroupDictionaryId,OpenMode.ForWrite);
             var created=new Group("Mr.T phòng "+id,true);groups.SetAt("*",created);tr.AddNewlyCreatedDBObject(created,true);
             created.Append(br.ObjectId);return created;
@@ -201,16 +267,18 @@ namespace MedGas2024.Engine
             var local=RoomFrame(center,direction,normal);
             string shape=String.IsNullOrEmpty(tag.FrameShape)?RoomLabelStyle.FrameNone:tag.FrameShape;
             var outline=Outline(NameBox(name,local),height,shape,tag.FramePad,tag.FrameRadius);
-            Group group=null;
-            var frameId=FromHandle(db,tag.Frame);
+            // Frame and wipeout are taken only from the block's own group. Stored handles are not trusted:
+            // after a copy to another drawing they may name an unrelated object there.
+            Polyline member;Wipeout memberWipe;var group=FindRoomGroup(tr,br);
+            DecorMembers(tr,br,group,out member,out memberWipe);
             if(shape==RoomLabelStyle.FrameNone)
             {
-                if(!frameId.IsNull){tr.GetObject(frameId,OpenMode.ForWrite).Erase();}
+                if(member!=null){member.UpgradeOpen();member.Erase();}
                 tag.Frame=null;
             }
             else
             {
-                Polyline pl=frameId.IsNull?null:tr.GetObject(frameId,OpenMode.ForWrite) as Polyline;
+                Polyline pl=member;if(pl!=null)pl.UpgradeOpen();
                 if(pl==null)
                 {
                     pl=new Polyline();pl.SetDatabaseDefaults(db);DrawFrame(pl,local,normal,outline);
@@ -220,15 +288,14 @@ namespace MedGas2024.Engine
                 else DrawFrame(pl,local,normal,outline);
                 pl.LayerId=br.LayerId;pl.Color=br.Color;tag.Frame=pl.ObjectId.Handle.ToString();
             }
-            var wipeId=FromHandle(db,tag.Wipeout);
             if(!tag.Mask)
             {
-                if(!wipeId.IsNull)tr.GetObject(wipeId,OpenMode.ForWrite).Erase();
+                if(memberWipe!=null){memberWipe.UpgradeOpen();memberWipe.Erase();}
                 tag.Wipeout=null;
             }
             else
             {
-                var wipe=wipeId.IsNull?null:tr.GetObject(wipeId,OpenMode.ForWrite) as Wipeout;
+                var wipe=memberWipe;if(wipe!=null)wipe.UpgradeOpen();
                 bool created=wipe==null;
                 if(created){wipe=new Wipeout();wipe.SetDatabaseDefaults(db);}
                 wipe.SetFrom(Polygon(outline),Vector3d.ZAxis);wipe.TransformBy(local);
@@ -279,7 +346,8 @@ namespace MedGas2024.Engine
             WriteName(name,display,style,center,direction,normal,target.Item2);
             var tag=new RoomTag{Id=entry.Id,Original=entry.OldName,OldName=entry.OldName,NewName=entry.NewName,LastText=display,ShowingNew=newMode,
                 Source=source,Upper=style.Upper,FrameShape=style.Frame==RoomLabelStyle.FrameNone?null:style.Frame,
-                FramePad=style.Pad,FrameRadius=style.Radius,Mask=style.Mask,Status=statusText};
+                FramePad=style.Pad,FrameRadius=style.Radius,Mask=style.Mask,Status=statusText,
+                LayoutSet=true,MaxLines=style.MaxLines,WidthFactor=style.WidthFactor,FixedWidth=style.Width,ReviewSet=true,Review=review};
             if(style.Frame!=RoomLabelStyle.FrameNone||style.Mask)UpdateDecor(db,tr,br,name,tag);
             Save(name,tr,tag);
             return name.ObjectId;
@@ -296,7 +364,8 @@ namespace MedGas2024.Engine
                 string value=ar.Tag==TagNew?entry.NewName:ar.Tag==TagStatus&&!String.IsNullOrEmpty(entry.Status)?entry.Status:null;
                 if(value!=null&&ar.TextString!=value){ar.UpgradeOpen();ar.TextString=value;}
             }
-            if(!String.IsNullOrEmpty(tag.Frame)||!String.IsNullOrEmpty(tag.Wipeout)){UpdateDecor(db,tr,br,name,tag);Save(name,tr,tag);}
+            Relayout(db,name,tag.LastText,tag);
+            UpdateDecor(db,tr,br,name,tag);Save(name,tr,tag);
         }
 
         static Tuple<ObjectId,ObjectId> ResolveLabelTarget(Database db,Transaction tr,RoomLabelStyle style)

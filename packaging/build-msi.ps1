@@ -67,16 +67,16 @@ try{
     'CREATE TABLE `ControlEvent` (`Dialog_` CHAR(72) NOT NULL, `Control_` CHAR(50) NOT NULL, `Event` CHAR(50) NOT NULL, `Argument` CHAR(255) NOT NULL, `Condition` CHAR(255), `Ordering` SHORT PRIMARY KEY `Dialog_`,`Control_`,`Event`,`Argument`,`Condition`)'
     )
     foreach($ddl in $tables){Sql $ddl}
-    $product='{F1654D98-85C1-4B31-869F-35EE84DF4B47}';$upgrade='{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}'
-    $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductName='Mr.T CAD tool set';ProductVersion='2.0.2.6';ProductLanguage='1033';Manufacturer='Mr.Toan-NhiTW';ALLUSERS='1';INSTALLLEVEL='1';ARPNOMODIFY='1';ARPPRODUCTICON='MrTIcon';ARPCOMMENTS='Layer + Linetype tools for AutoCAD 2024 x64';DefaultUIFont='Body';SecureCustomProperties='OLDPRODUCTS;NEWERPRODUCTS';MSIRESTARTMANAGERCONTROL='Disable';REBOOT='ReallySuppress'}
+    $product='{924437EE-3A6C-4F7A-8D0D-81C42D6A64E1}';$upgrade='{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}'
+    $properties=@{ProductCode=$product;UpgradeCode=$upgrade;ProductName='Mr.T CAD tool set';ProductVersion='2.0.2.7';ProductLanguage='1033';Manufacturer='Mr.Toan-NhiTW';ALLUSERS='1';INSTALLLEVEL='1';ARPNOMODIFY='1';ARPPRODUCTICON='MrTIcon';ARPCOMMENTS='Layer + Linetype tools for AutoCAD 2024 x64';DefaultUIFont='Body';SecureCustomProperties='OLDPRODUCTS;NEWERPRODUCTS';MSIRESTARTMANAGERCONTROL='Disable';REBOOT='ReallySuppress'}
     foreach($key in $properties.Keys){Row 'Property' @('Property','Value') @($key,$properties[$key])}
     Row 'LaunchCondition' @('Condition','Description') @('VersionNT64','This package requires 64-bit Windows and full AutoCAD 2024. AutoCAD LT is not supported.')
     Row 'LaunchCondition' @('Condition','Description') @('Installed OR NOT NEWERPRODUCTS','A newer version of Mr.T CAD tool set is already installed.')
     Row 'LaunchCondition' @('Condition','Description') @('Installed OR NET48RELEASE >= "#528040"','.NET Framework 4.8 or later is required. Install the AutoCAD 2024 prerequisites first.')
     Row 'AppSearch' @('Property','Signature_') @('NET48RELEASE','DotNet48')
     Row 'RegLocator' @('Signature_','Root','Key','Name','Type') @('DotNet48',2,'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full','Release',18)
-    Row 'Upgrade' @('UpgradeCode','VersionMin','VersionMax','Language','Attributes','Remove','ActionProperty') @($upgrade,$null,'2.0.2.6',$null,512,$null,'OLDPRODUCTS')
-    Row 'Upgrade' @('UpgradeCode','VersionMin','VersionMax','Language','Attributes','Remove','ActionProperty') @($upgrade,'2.0.2.6',$null,$null,2,$null,'NEWERPRODUCTS')
+    Row 'Upgrade' @('UpgradeCode','VersionMin','VersionMax','Language','Attributes','Remove','ActionProperty') @($upgrade,$null,'2.0.2.7',$null,512,$null,'OLDPRODUCTS')
+    Row 'Upgrade' @('UpgradeCode','VersionMin','VersionMax','Language','Attributes','Remove','ActionProperty') @($upgrade,'2.0.2.7',$null,$null,2,$null,'NEWERPRODUCTS')
     Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('TARGETDIR',$null,'SourceDir')
     Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('ProgramFiles64Folder','TARGETDIR','.')
     Row 'Directory' @('Directory','Directory_Parent','DefaultDir') @('AutodeskFolder','ProgramFiles64Folder','Autodesk')
@@ -110,7 +110,7 @@ try{
     function Event([string]$dialog,[string]$control,[string]$event,[string]$argument,[int]$order=1){Row 'ControlEvent' @('Dialog_','Control_','Event','Argument','Condition','Ordering') @($dialog,$control,$event,$argument,'1',$order)}
     function Dialog([string]$name,[string]$first,[string]$default,[string]$cancel){Row 'Dialog' @('Dialog','HCentering','VCentering','Width','Height','Attributes','Title','Control_First','Control_Default','Control_Cancel') @($name,50,50,400,280,3,'[ProductName] Setup',$first,$default,$cancel);Control $name 'Title' 'Text' 22 18 356 30 '{\Title}Mr.T CAD tool set';Control $name 'Footer' 'Text' 22 242 350 14 'workflow by Mr.Toan-NhiTW'}
     Dialog 'WelcomeDlg' 'Next' 'Next' 'Cancel'
-    Control 'WelcomeDlg' 'Intro' 'Text' 22 62 354 130 'Install Mr.T CAD tool set 2.0.2.6 trial for full AutoCAD 2024 (64-bit).\n\nIncludes Layer + Linetype management and the new Legend table tool.\n\nSave your drawings and close every AutoCAD window before continuing.'
+    Control 'WelcomeDlg' 'Intro' 'Text' 22 62 354 130 'Install Mr.T CAD tool set 2.0.2.7 trial for full AutoCAD 2024 (64-bit).\n\nIncludes Layer + Linetype management and the new Legend table tool.\n\nSave your drawings and close every AutoCAD window before continuing.'
     Control 'WelcomeDlg' 'Next' 'PushButton' 230 210 70 23 'Next >' 'Cancel'
     Control 'WelcomeDlg' 'Cancel' 'PushButton' 308 210 70 23 'Cancel' 'Next'
     Event 'WelcomeDlg' 'Next' 'NewDialog' 'ReadyDlg';Event 'WelcomeDlg' 'Cancel' 'EndDialog' 'Exit'

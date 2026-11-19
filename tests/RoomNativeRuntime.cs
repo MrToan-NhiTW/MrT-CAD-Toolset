@@ -214,7 +214,7 @@ public static class RoomNativeRuntime
         RoomService.ApplyMatches(db,db.CurrentSpaceId,new[]{old603},true,RoomCatalog.DefaultLayer,RoomCatalog.DefaultStyle,false,null);
         var legacyLabel=old603.Label;
         var options=new RoomMatchOptions{CreateLabels=true,Blocks=true,ReplaceOld=true};
-        var style=new RoomLabelStyle{Layer=layer,Height=300,Width=2000,Upper=true,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,ReplaceOld=true};
+        var style=new RoomLabelStyle{Layer=layer,Height=300,Width=2000,Upper=true,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,ReplaceOld=true,LayoutDecided=true};
         Func<List<RoomHit>> match=()=>RoomNameMatcher.Match(RoomService.ScanNames(db,db.CurrentSpaceId,source),catalog,true,options);
         var ready=match().Where(h=>h.Ready).ToList();
         Check(ready.Count==5&&ready.Where(h=>h.Text=="604").All(h=>h.Splits.Count==1&&h.Review)&&ready.Single(h=>h.Text=="602").Splits.Count==2&&ready.Single(h=>h.Text=="601").Action==RoomNameMatcher.ActionReplace&&ready.Single(h=>h.Text=="603").Action==RoomNameMatcher.ActionUpgrade,"Direct 601 is replaced; shared 602 is a split; the old 603 MTEXT label is upgraded");
@@ -267,7 +267,7 @@ public static class RoomNativeRuntime
             Check(f.Max(p=>p.GeometricExtents.MaxPoint.X-p.GeometricExtents.MinPoint.X)<widthBefore,"Frames are redrawn to fit the shorter name");
         }
         // 2.0.2.5: wipeout follows the frame; the manager edits blocks in place.
-        var masked=new RoomLabelStyle{Layer=layer,Height=300,Width=2400,Mask=true,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6};
+        var masked=new RoomLabelStyle{Layer=layer,Height=300,Width=2400,Mask=true,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,LayoutDecided=true};
         var catalog2=RoomCatalog.Build(new[]{new RoomEntry{Id="605",OldName="605",NewName="WC"}});
         using(var tr=db.TransactionManager.StartTransaction())
         {
@@ -290,20 +290,72 @@ public static class RoomNativeRuntime
         var listed=RoomService.ListRoomBlocks(db);
         var row=listed.Single(x=>x.Id=="605");
         Check(row.Name=="WC"&&row.Height==300&&row.Width==2400&&row.Mask&&row.Frame==RoomLabelStyle.FrameRounded&&listed.Count(x=>x.Id.StartsWith("60"))>=6,"Manager lists room blocks with name, size, frame and wipeout");
-        var edit=row.Copy();edit.Name="NHÀ VỆ SINH NỮ";edit.Height=200;edit.Color=3;edit.Frame=RoomLabelStyle.FrameSlot;edit.Mask=false;edit.Note="Sửa tay";edit.Layer="Mr.T Phòng sửa";
+        var edit=row.Copy();edit.Name="NHÀ VỆ SINH NỮ";edit.Height=200;edit.Checked=true;edit.Frame=RoomLabelStyle.FrameSlot;edit.Mask=false;edit.Note="Sửa tay";edit.Layer="Mr.T Phòng sửa";
         Check(RoomService.SaveRoomBlocks(db,new[]{edit})==1,"Manager saves one edited room");
         using(var tr=db.TransactionManager.StartOpenCloseTransaction())
         {
             var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");var a=Attributes(tr,b);
             var name=b.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(x=>x.Tag==RoomService.TagName);
             var tag=RoomService.ReadTag(db,name.ObjectId);
-            Check(a[RoomService.TagName]=="NHÀ VỆ SINH NỮ"&&a[RoomService.TagNote]=="Sửa tay"&&Math.Abs(name.MTextAttribute.TextHeight-200)<1e-9&&b.ColorIndex==3&&b.Layer=="Mr.T Phòng sửa","Name, note, height, colour and a new layer are written in place");
+            Check(a[RoomService.TagName]=="NHÀ VỆ SINH NỮ"&&a[RoomService.TagNote]=="Sửa tay"&&Math.Abs(name.MTextAttribute.TextHeight-200)<1e-9&&b.ColorIndex==158&&b.Layer=="Mr.T Phòng sửa","Name, note, height, colour and a new layer are written in place");
             Check(String.IsNullOrEmpty(tag.Wipeout)&&tag.FrameShape==RoomLabelStyle.FrameSlot&&tag.LastText=="NHÀ VỆ SINH NỮ","Wipeout removed, frame switched to slot, tag follows the edit");
             var frame=(Polyline)tr.GetObject(db.GetObjectId(false,new Handle(Convert.ToInt64(tag.Frame,16)),0),OpenMode.ForRead);
-            Check(frame.NumberOfVertices==4&&frame.Layer=="Mr.T Phòng sửa"&&frame.ColorIndex==3,"Frame redrawn as a slot on the new layer and colour");
+            Check(frame.NumberOfVertices==4&&frame.Layer=="Mr.T Phòng sửa"&&frame.ColorIndex==158,"Frame redrawn as a slot on the new layer and colour");
         }
         var plan2=RoomService.Inspect(db,null,false);
         Check(plan2.Rows.Single(x=>x.RoomId=="605").Ready,"An edited room still switches old/new without being flagged as manual");
+        // 2.0.2.7: Max lines, Width factor, Checked colour and stale frame handles.
+        var longName=listed.Single(x=>x.Id=="605").Copy();longName.Name="PHÒNG QUẢN LÝ THUỐC THỬ NGHIỆM LÂM SÀNG";longName.Height=200;longName.Width=0;longName.MaxLines=3;longName.WidthFactor=1;
+        longName.Layer="Mr.T Phòng sửa";longName.Frame=RoomLabelStyle.FrameRounded;longName.Mask=true;longName.Checked=true;longName.Note="Sửa tay";
+        RoomService.SaveRoomBlocks(db,new[]{longName},158,1);
+        double wide,tall;
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");
+            var n=b.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(x=>x.Tag==RoomService.TagName);
+            using(var m=n.MTextAttribute){wide=m.ActualWidth;tall=m.ActualHeight;
+                Check(m.Width==0&&m.Contents.Split(new[]{"\\P"},StringSplitOptions.None).Length==3&&tall>200*2.5&&tall<200*6&&RoomLayout.Plain(m.Text)=="PHÒNG QUẢN LÝ THUỐC THỬ NGHIỆM LÂM SÀNG","Max lines 3 splits the long name into exactly 3 lines: width "+m.Width+" height "+tall+" actualW "+m.ActualWidth+" spacing "+m.LineSpacingFactor+"/"+m.LineSpaceDistance+" contents "+m.Contents+" style "+m.TextStyleName);}
+            Check(b.ColorIndex==158,"Checked room takes the normal colour");
+        }
+        var narrow=longName.Copy();narrow.WidthFactor=.8;narrow.MaxLines=0;narrow.Checked=false;RoomService.SaveRoomBlocks(db,new[]{narrow},158,1);
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");
+            var n=b.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(x=>x.Tag==RoomService.TagName);
+            using(var m=n.MTextAttribute)Check(m.Width==0&&m.ActualHeight<200*1.5&&m.Text=="PHÒNG QUẢN LÝ THUỐC THỬ NGHIỆM LÂM SÀNG"&&m.Contents.Contains("\\W0.8;"),"Max lines 0 keeps one line; Width factor 0.8 is written to the name");
+            Check(b.ColorIndex==1,"Unchecked room takes the review colour");
+        }
+        // Simulate a copy into another drawing: the group is gone and the stored frame handle names an unrelated polyline.
+        ObjectId decoy;Point3d decoyStart;
+        using(var tr=db.TransactionManager.StartTransaction())
+        {
+            var space=(BlockTableRecord)tr.GetObject(db.CurrentSpaceId,OpenMode.ForWrite);
+            var pl=new Polyline();pl.AddVertexAt(0,new Point2d(-5000,-5000),0,0,0);pl.AddVertexAt(1,new Point2d(-4000,-5000),0,0,0);space.AppendEntity(pl);tr.AddNewlyCreatedDBObject(pl,true);decoy=pl.ObjectId;decoyStart=pl.StartPoint;
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");
+            using(var reactors=b.GetPersistentReactorIds())foreach(ObjectId r in reactors){var g=tr.GetObject(r,OpenMode.ForWrite) as Group;if(g!=null)g.Erase();}
+            tr.Commit();
+        }
+        using(var tr=db.TransactionManager.StartTransaction())
+        {
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");
+            var n=b.AttributeCollection.Cast<ObjectId>().Select(id=>(AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Single(x=>x.Tag==RoomService.TagName);
+            var tag=RoomService.ReadTag(db,n.ObjectId);tag.Frame=decoy.Handle.ToString();tag.Wipeout=decoy.Handle.ToString();
+            n.UpgradeOpen();if(n.ExtensionDictionary.IsNull)n.CreateExtensionDictionary();
+            var d=(DBDictionary)tr.GetObject(n.ExtensionDictionary,OpenMode.ForWrite);var xr=(Xrecord)tr.GetObject(d.GetAt("MRT_ROOM_V1"),OpenMode.ForWrite);
+            var json=tag.Serialize();var values=new List<TypedValue>();for(int i=0;i<json.Length;i+=200)values.Add(new TypedValue((int)DxfCode.Text,json.Substring(i,Math.Min(200,json.Length-i))));
+            using(var rb=new ResultBuffer(values.ToArray()))xr.Data=rb;tr.Commit();
+        }
+        var copied=RoomService.ListRoomBlocks(db).Single(x=>x.Id=="605");
+        Check(copied.Frame==RoomLabelStyle.FrameNone&&!copied.Mask,"A block whose stored frame handle points elsewhere shows no frame instead of a foreign object");
+        copied.Frame=RoomLabelStyle.FrameRounded;copied.Mask=true;RoomService.SaveRoomBlocks(db,new[]{copied},158,1);
+        using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+        {
+            var pl=(Polyline)tr.GetObject(decoy,OpenMode.ForRead);
+            Check(!decoy.IsErased&&pl.NumberOfVertices==2&&pl.StartPoint==decoyStart,"The unrelated polyline named by the stale handle is left untouched");
+            var b=RoomBlocks(tr,db).Single(x=>Attributes(tr,x)[RoomService.TagId]=="605");
+            var tag=RoomService.ReadTag(db,b.AttributeCollection.Cast<ObjectId>().Single(id=>((AttributeReference)tr.GetObject(id,OpenMode.ForRead)).Tag==RoomService.TagName));
+            Check(tag.Frame!=decoy.Handle.ToString()&&tag.Wipeout!=decoy.Handle.ToString()&&RoomService.ListRoomBlocks(db).Single(x=>x.Id=="605").Mask,"A new frame and wipeout are created and grouped with the block");
+        }
         output.Add("PASS: room blocks — new layer, height/width, upper case, frame+group, replace old text, split, rerun, switch, wipeout, manager edits.");
     }
     // UNDO check on the active drawing: FIX builds a block with 515, APPLY labels it in its

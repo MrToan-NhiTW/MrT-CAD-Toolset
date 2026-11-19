@@ -74,6 +74,14 @@ public static class RoomRulesTests
         Check(RoomSearch.Matches("dieu tri -kho","PHÒNG ĐIỀU TRỊ","A1")&&!RoomSearch.Matches("dieu -tri","PHÒNG ĐIỀU TRỊ")&&RoomSearch.Matches("a1 phong","PHÒNG ĐIỀU TRỊ","A1"),"Every word must match across fields; -word excludes");
         var sorted=new[]{"P10","p2","P1","Kho","007","7A"}.OrderBy(x=>x,Comparer<string>.Create(RoomSearch.NaturalCompare)).ToArray();
         Check(sorted.SequenceEqual(new[]{"007","7A","Kho","P1","p2","P10"}),"Natural sort puts P2 before P10");
+        // PHÒNG QUẢN LÝ THUỐC THỬ NGHIỆM LÂM SÀNG with unit-ish word widths.
+        var words=new double[]{5,4,5,5,4,6,3,4};double space=1;
+        Check(RoomLayout.ColumnWidth(words,space,1)==36+7&&RoomLayout.ColumnWidth(words,space,3)<=16&&RoomLayout.ColumnWidth(words,space,3)>=14,"Max lines 3 balances a long name into the narrowest three-line column");
+        Check(RoomLayout.ColumnWidth(new double[]{3},1,3)==3&&RoomLayout.ColumnWidth(new double[]{3,3},1,5)==3,"Short names never get a wider column than needed");
+        var starts=RoomLayout.Breaks(words,space,3);
+        Func<int,int,double> run=(i,j)=>{double w=0;for(int k=i;k<=j;k++)w+=words[k];return w+space*(j-i);};
+        Check(starts.Length==3&&starts[0]==0&&Enumerable.Range(0,3).All(i=>run(starts[i],(i+1<3?starts[i+1]:words.Length)-1)<=16),"Line breaks follow the balanced split: "+String.Join(",",starts));
+        Check(RoomLayout.Breaks(new double[]{3,3},1,1).SequenceEqual(new[]{0})&&RoomLayout.Plain(" PHÒNG\r\nPHÓ  KHOA ")=="PHÒNG PHÓ KHOA","One line keeps one start; Plain folds line breaks");
     }
     public static int Main(){try{
         var entries=new[]{new RoomEntry{Id="PHÒNG KHÁM",OldName="PHÒNG KHÁM",NewName="PHÒNG KHÁM MỚI",ExcelRow=2},new RoomEntry{Id="PHÒNG XÉT NGHIỆM",OldName="PHÒNG XÉT NGHIỆM",NewName="A",ExcelRow=3},new RoomEntry{Id="PHÒNG XÉT NGHIỆM",OldName="PHÒNG XÉT NGHIỆM",NewName="B",ExcelRow=4}};

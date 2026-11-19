@@ -44,10 +44,14 @@ namespace MedGas2024.Engine
                         RoomTag tag=null;try{var json=Read(name,tr);if(json!=null)tag=RoomTag.Parse(json);}catch(ArgumentException){}catch(System.Runtime.Serialization.SerializationException){}
                         string text;double height,width;using(var m=name.MTextAttribute){text=m.Text;height=m.TextHeight;width=m.Width;}
                         Func<string,string> a=k=>{string v;return attrs.TryGetValue(k,out v)?v:"";};
-                        rows.Add(new RoomBlockInfo{Handle=br.Handle.ToString(),Space=spaceName,Id=a(TagId),Name=text,OldName=a(TagOld),NewName=a(TagNew),Status=a(TagStatus),Note=a(TagNote),
-                            Layer=br.Layer,Height=height,Width=width,Color=br.Color.IsByLayer?256:br.ColorIndex,
-                            Frame=tag==null||String.IsNullOrEmpty(tag.FrameShape)||String.IsNullOrEmpty(tag.Frame)?RoomLabelStyle.FrameNone:tag.FrameShape,
-                            Pad=tag==null?0.4:tag.FramePad,Radius=tag==null?0.6:tag.FrameRadius,Mask=tag!=null&&tag.Mask&&!String.IsNullOrEmpty(tag.Wipeout)});
+                        Polyline frame;Wipeout wipe;DecorMembers(tr,br,FindRoomGroup(tr,br),out frame,out wipe);
+                        bool layout=tag!=null&&tag.LayoutSet;
+                        rows.Add(new RoomBlockInfo{Handle=br.Handle.ToString(),Space=spaceName,Id=a(TagId),Name=RoomLayout.Plain(text),OldName=a(TagOld),NewName=a(TagNew),Status=a(TagStatus),Note=a(TagNote),
+                            Layer=br.Layer,Height=height,Width=layout?tag.FixedWidth:width,Color=br.Color.IsByLayer?256:br.ColorIndex,
+                            MaxLines=layout?tag.MaxLines:0,WidthFactor=layout&&tag.WidthFactor>0?tag.WidthFactor:1,
+                            Checked=tag!=null&&tag.ReviewSet?!tag.Review:String.IsNullOrWhiteSpace(a(TagNote)),
+                            Frame=frame==null||tag==null||String.IsNullOrEmpty(tag.FrameShape)?RoomLabelStyle.FrameNone:tag.FrameShape,
+                            Pad=tag==null?0.4:tag.FramePad,Radius=tag==null?0.6:tag.FrameRadius,Mask=wipe!=null});
                     }
                 }
             }
@@ -56,6 +60,11 @@ namespace MedGas2024.Engine
 
         // Writes the given rows (only those that differ from the drawing). One transaction, one UNDO.
         public static int SaveRoomBlocks(Database db,IEnumerable<RoomBlockInfo> rows)
+        {
+            return SaveRoomBlocks(db,rows,158,1);
+        }
+        // Checked rooms take the normal colour, unchecked ones the review colour.
+        public static int SaveRoomBlocks(Database db,IEnumerable<RoomBlockInfo> rows,int normalColor,int reviewColor)
         {
             int count=0;
             using(var tr=db.TransactionManager.StartTransaction())
@@ -73,7 +82,7 @@ namespace MedGas2024.Engine
                     tag=tag??new RoomTag{Id=row.Id,Original=row.OldName,OldName=row.OldName,NewName=row.NewName};
                     var layer=ResolveLayer(db,tr,row.Layer);
                     if(br.LayerId!=layer)br.LayerId=layer;
-                    if(row.Color==256)br.Color=Autodesk.AutoCAD.Colors.Color.FromColorIndex(Autodesk.AutoCAD.Colors.ColorMethod.ByLayer,256);else br.ColorIndex=(short)row.Color;
+                    br.ColorIndex=(short)(row.Checked?normalColor:reviewColor);
                     foreach(ObjectId aid in br.AttributeCollection)
                     {
                         var ar=(AttributeReference)tr.GetObject(aid,OpenMode.ForWrite);ar.LayerId=layer;ar.Color=br.Color;
@@ -83,15 +92,9 @@ namespace MedGas2024.Engine
                     // Name text, height and width. Everything else of the multiline attribute is kept.
                     Point3d center;Vector3d direction,normal;ObjectId styleId;
                     using(var m=name.MTextAttribute){center=m.Location;direction=m.Direction;normal=m.Normal;styleId=m.TextStyleId;}
-                    name.Height=row.Height;name.Justify=AttachmentPoint.MiddleCenter;name.AlignmentPoint=center;
-                    using(var m=name.MTextAttribute)
-                    {
-                        m.TextHeight=row.Height;m.Width=row.Width>0?row.Width:0;m.Attachment=AttachmentPoint.MiddleCenter;m.Location=center;
-                        if(m.Text!=row.Name)m.Contents=Literal(row.Name);
-                        name.MTextAttribute=m;
-                    }
-                    name.UpdateMTextAttribute();
+                    LayoutName(db,name,row.Name,row.Height,row.Width,row.MaxLines,row.WidthFactor,center,direction,normal);
                     tag.LastText=row.Name;tag.OldName=row.OldName;tag.NewName=row.NewName;tag.Status=row.Status;
+                    tag.LayoutSet=true;tag.FixedWidth=row.Width;tag.MaxLines=row.MaxLines;tag.WidthFactor=row.WidthFactor;tag.ReviewSet=true;tag.Review=!row.Checked;
                     tag.FrameShape=row.Frame==RoomLabelStyle.FrameNone?null:row.Frame;tag.FramePad=row.Pad;tag.FrameRadius=row.Radius;tag.Mask=row.Mask;
                     UpdateDecor(db,tr,br,name,tag);
                     Save(name,tr,tag);

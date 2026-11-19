@@ -1,3 +1,14 @@
+# Bàn giao 2.0.2.7
+
+Cùng nhánh PR #7. Bộ cài **releases/MrT_CAD_Toolset_2.0.2.7_Setup.exe**, ProductCode `{924437EE-3A6C-4F7A-8D0D-81C42D6A64E1}`, SHA-256 **1A1E01373BB95A166E949F5E8F4320C2A6EDE2973BFBDCA098151739B84B642D**.
+
+- **Max lines** (mặc định 3) thay "Rộng MTEXT": `RoomLayout.Breaks` chia tên thành dòng nguyên từ, cân bằng độ dài; số dòng = min(Max lines, ceil(độ dài một dòng / 10 × Text height)). Công cụ tự chèn `\P` (Width = 0) nên số dòng chính xác; việc để AutoCAD tự ngắt theo độ rộng ước lượng bị lệch với chữ hoa có dấu. **Fixed width** > 0 vẫn để AutoCAD ngắt. So sánh tên dùng `RoomLayout.Plain` (gộp xuống dòng/khoảng trắng). Cài đặt cũ (Width 2400) tự chuyển sang Max lines 3 (`LayoutDecided`).
+- **Width factor**: mã `\W` trong nội dung MTEXT của thuộc tính.
+- **Checked** thay cột Màu trong Quản lý phòng: tag `ReviewSet/Review`; lưu thì Checked → Color (158), bỏ tích → Review color (1) lấy từ cài đặt.
+- **Liên kết khung/wipeout an toàn**: chỉ nhận polyline/wipeout là thành viên nhóm "Mr.T phòng" của block (cùng không gian); không tin handle trong tag. Mất nhóm (copy sang bản vẽ khác) → hiện không khung, lưu thì tạo mới; đối tượng lạ trùng handle không bị sửa (ca kiểm thử native).
+- Thuật ngữ kỹ thuật trên form bằng tiếng Anh: Text height, Max lines, Width factor, Fixed width, Frame, Padding, Corner radius, Wipeout, Checked, Color, Review color.
+- **Kiểm tra**: 633 PASS / 0 FAIL; native PASS; ribbon PASS. Bản sao file tầng 4 hiện tại (đã có 98 block do người dùng tạo bằng 2.0.2.5): Quản lý phòng liệt kê 98 (98 khung, 98 wipeout, 71 Checked), lưu Max lines 3 cho cả 98, xuất/nhập Excel khớp; ảnh in: "ĐIỀU DƯỠNG / TRƯỞNG", "PHÒNG PHÓ / TRƯỞNG KHOA", tên 45 ký tự 3 dòng.
+
 # Bàn giao 2.0.2.6
 
 Cùng nhánh PR #7. Bộ cài **releases/MrT_CAD_Toolset_2.0.2.6_Setup.exe**, ProductCode `{F1654D98-85C1-4B31-869F-35EE84DF4B47}`, SHA-256 **F3756D6EF1C2143807CA2972EE14E86A20D1222C0C18837A9F847E4ED7662D25**.

@@ -19,19 +19,20 @@ namespace MedGas2024.UI
         readonly TextBox query=new TextBox{Width=260};
         readonly ComboBox filter=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=190},frame=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=150};
         readonly NumericUpDown height=new CompactNumber{Minimum=0,Maximum=1000000000,DecimalPlaces=5,Width=95},width=new CompactNumber{Minimum=-1,Maximum=1000000000,DecimalPlaces=5,Width=95,Value=-1},
-            color=new NumericUpDown{Minimum=0,Maximum=256,Width=60},pad=new NumericUpDown{Minimum=0,Maximum=10,DecimalPlaces=2,Increment=.1M,Width=60},radius=new NumericUpDown{Minimum=0,Maximum=10,DecimalPlaces=2,Increment=.1M,Width=60};
-        readonly ComboBox mask=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=95};
+            lines=new NumericUpDown{Minimum=-1,Maximum=20,Value=-1,Width=55},factor=new NumericUpDown{Minimum=0,Maximum=3,DecimalPlaces=2,Increment=.05M,Value=0,Width=65},
+            pad=new NumericUpDown{Minimum=0,Maximum=10,DecimalPlaces=2,Increment=.1M,Width=60},radius=new NumericUpDown{Minimum=0,Maximum=10,DecimalPlaces=2,Increment=.1M,Width=60};
+        readonly ComboBox mask=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=125},check=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,Width=125};
         readonly Label shown=new Label{AutoSize=true,Margin=new Padding(8,7,0,0)},state=new Label{Dock=DockStyle.Fill,AutoEllipsis=true};
-        const string FilterAll="Tất cả phòng",FilterCheck="Cần kiểm tra",FilterChanged="Đã sửa, chưa lưu";
+        const string FilterAll="Tất cả phòng",FilterCheck="Chưa Checked",FilterChanged="Đã sửa, chưa lưu";
         static readonly CultureInfo Vietnamese=new CultureInfo("vi-VN");
         static void Field(FlowLayoutPanel p,string text,Control c){p.Controls.Add(new Label{Text=text,AutoSize=true,Margin=new Padding(6,7,3,0)});p.Controls.Add(c);}
         static void Guard(Action a){try{a();}catch(Exception e){MessageBox.Show(e.Message,"Mr.T quản lý phòng",MessageBoxButtons.OK,MessageBoxIcon.Information);}}
-        static bool NeedsCheck(RoomBlockInfo r){return !String.IsNullOrWhiteSpace(r.Note)||r.Status==RoomCatalog.StatusSplit||r.Status==RoomCatalog.StatusNotInExcel||r.Status==RoomCatalog.StatusPending;}
+        static bool NeedsCheck(RoomBlockInfo r){return !r.Checked;}
 
         public RoomManagerForm(List<RoomBlockInfo> rows,IEnumerable<RoomBlockInfo> fromDrawing,string note)
         {
             UiTheme.Attach(this);Rows=rows;original=fromDrawing.ToDictionary(r=>r.Handle,r=>r.Copy(),StringComparer.OrdinalIgnoreCase);
-            Text="Mr.T Quản lý phòng | 2.0.2.6";Font=UiStyle.Body();Size=new Size(1360,800);MinimumSize=new Size(1000,600);StartPosition=FormStartPosition.CenterParent;
+            Text="Mr.T Quản lý phòng | 2.0.2.7";Font=UiStyle.Body();Size=new Size(1360,800);MinimumSize=new Size(1000,600);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=6};
             foreach(int px in new[]{36,40,-1,74,46,30})root.RowStyles.Add(px<0?new RowStyle(SizeType.Percent,100):new RowStyle(SizeType.Absolute,px));
             Controls.Add(root);
@@ -44,11 +45,13 @@ namespace MedGas2024.UI
             UiStyle.Grid(grid);grid.ReadOnly=false;
             Action<string,string,int,bool> add=(prop,title,w,ro)=>grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName=prop,HeaderText=title,Width=w,ReadOnly=ro,SortMode=DataGridViewColumnSortMode.Automatic});
             add("Id","Mã phòng",90,true);add("Name","Tên hiển thị",220,false);add("OldName","Tên cũ",110,false);add("NewName","Tên mới",180,false);
-            add("Status","Trạng thái",100,false);add("Note","Ghi chú",200,false);add("Layer","Layer",150,false);add("Height","Text height",80,false);add("Width","Rộng MTEXT",85,false);add("Color","Màu",50,false);
-            var frameColumn=new DataGridViewComboBoxColumn{DataPropertyName="Frame",HeaderText="Khung",Width=140,FlatStyle=FlatStyle.Flat,SortMode=DataGridViewColumnSortMode.Automatic};frameColumn.Items.AddRange(RoomLabelStyle.Frames);grid.Columns.Add(frameColumn);
-            add("Pad","Lề (× Text height)",90,false);add("Radius","Bo góc (× Text height)",95,false);
-            grid.Columns.Add(new DataGridViewCheckBoxColumn{DataPropertyName="Mask",HeaderText="Nền che",Width=60,SortMode=DataGridViewColumnSortMode.Automatic});
-            add("Space","Không gian",80,true);add("Handle","Handle",70,true);
+            add("Status","Trạng thái",100,false);add("Note","Ghi chú",200,false);
+            grid.Columns.Add(new DataGridViewCheckBoxColumn{DataPropertyName="Checked",HeaderText="Checked",Width=70,SortMode=DataGridViewColumnSortMode.Automatic,ToolTipText="Đã kiểm tra: màu bình thường. Bỏ tích: màu cần kiểm tra."});
+            add("Layer","Layer",150,false);add("Height","Text height",80,false);add("MaxLines","Max lines",70,false);add("WidthFactor","Width factor",80,false);add("Width","Fixed width",85,false);
+            var frameColumn=new DataGridViewComboBoxColumn{DataPropertyName="Frame",HeaderText="Frame",Width=140,FlatStyle=FlatStyle.Flat,SortMode=DataGridViewColumnSortMode.Automatic};frameColumn.Items.AddRange(RoomLabelStyle.Frames);grid.Columns.Add(frameColumn);
+            add("Pad","Padding (× Text height)",100,false);add("Radius","Corner radius (× Text height)",110,false);
+            grid.Columns.Add(new DataGridViewCheckBoxColumn{DataPropertyName="Mask",HeaderText="Wipeout",Width=70,SortMode=DataGridViewColumnSortMode.Automatic});
+            add("Space","Space",80,true);add("Handle","Handle",70,true);
             grid.CellFormatting+=(s,e)=>{
                 if(e.RowIndex<0)return;var r=grid.Rows[e.RowIndex].DataBoundItem as RoomBlockInfo;if(r==null)return;
                 if(r.Changed)e.CellStyle.BackColor=Color.FromArgb(255,244,214);
@@ -60,10 +63,15 @@ namespace MedGas2024.UI
             root.Controls.Add(grid,0,2);
             var bulk=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=true,AutoScroll=true};
             frame.Items.Add("(giữ nguyên)");frame.Items.AddRange(RoomLabelStyle.Frames);frame.SelectedIndex=0;
-            mask.Items.AddRange(new object[]{"(giữ nguyên)","Có","Không"});mask.SelectedIndex=0;
-            Field(bulk,"Text height",height);Field(bulk,"Rộng MTEXT (-1 giữ, 0 tự do)",width);Field(bulk,"Màu",color);Field(bulk,"Khung",frame);Field(bulk,"Lề (× Text height)",pad);Field(bulk,"Bo góc (× Text height)",radius);Field(bulk,"Nền che",mask);
+            mask.Items.AddRange(new object[]{"(giữ nguyên)","Yes","No"});mask.SelectedIndex=0;check.Items.AddRange(new object[]{"(giữ nguyên)","Yes","No"});check.SelectedIndex=0;
+            Field(bulk,"Text height",height);Field(bulk,"Max lines",lines);Field(bulk,"Width factor",factor);Field(bulk,"Fixed width",width);Field(bulk,"Frame",frame);
+            Field(bulk,"Padding",pad);Field(bulk,"Corner radius",radius);Field(bulk,"Wipeout",mask);Field(bulk,"Checked",check);
             var apply=new Button{Text="Áp cho dòng đã chọn",AutoSize=true};var upper=new Button{Text="CHỮ HOA tên hiển thị",AutoSize=true};bulk.Controls.Add(apply);bulk.Controls.Add(upper);
-            new ToolTip().SetToolTip(apply,"Text height/Màu để 0, Rộng MTEXT để -1 hoặc (giữ nguyên) thì không đổi. Rộng MTEXT 0 = tự do. Lề và Bo góc chỉ áp khi chọn Khung.");
+            var tips=new ToolTip();
+            tips.SetToolTip(apply,"Giữ nguyên: Text height 0, Max lines -1, Width factor 0, Fixed width -1, (giữ nguyên). Padding/Corner radius (× Text height) chỉ áp khi chọn Frame.");
+            tips.SetToolTip(lines,"Max lines: số dòng tối đa; công cụ tự tính độ rộng cột. 0 = một dòng. Chỉ dùng khi Fixed width = 0.");
+            tips.SetToolTip(factor,"Width factor: độ rộng chữ (1 = bình thường, 0.8 = hẹp hơn).");
+            tips.SetToolTip(width,"Fixed width: độ rộng cột MTEXT cố định; 0 = tự tính theo Max lines.");
             root.Controls.Add(bulk,0,3);
             var actions=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft};
             var close=new Button{Text="Đóng",AutoSize=true,DialogResult=DialogResult.Cancel};var save=new Button{Text="Lưu vào bản vẽ",AutoSize=true};
@@ -76,7 +84,8 @@ namespace MedGas2024.UI
                 var chosen=Selected();if(chosen.Count==0)throw new ArgumentException("Chọn một hoặc nhiều dòng.");
                 foreach(var r in chosen)
                 {
-                    if(height.Value>0)r.Height=(double)height.Value;if(width.Value>=0)r.Width=(double)width.Value;if(color.Value>0)r.Color=(int)color.Value;
+                    if(height.Value>0)r.Height=(double)height.Value;if(width.Value>=0)r.Width=(double)width.Value;
+                    if(lines.Value>=0)r.MaxLines=(int)lines.Value;if(factor.Value>0)r.WidthFactor=(double)factor.Value;if(check.SelectedIndex>0)r.Checked=check.SelectedIndex==1;
                     if(frame.SelectedIndex>0){r.Frame=(string)frame.SelectedItem;r.Pad=(double)pad.Value;r.Radius=(double)radius.Value;}
                     if(mask.SelectedIndex>0)r.Mask=mask.SelectedIndex==1;Mark(r);
                 }

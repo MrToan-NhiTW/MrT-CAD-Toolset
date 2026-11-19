@@ -25,6 +25,11 @@ namespace MedGas2024.Core
         // 2.0.2.5: WIPEOUT matching the frame (Mask) and its handle.
         [DataMember(EmitDefaultValue=false)] public bool Mask;
         [DataMember(EmitDefaultValue=false)] public string Wipeout;
+        // 2.0.2.7: name layout (Max lines with automatic column width, Width factor, Fixed width)
+        // and the review flag behind the Checked column. LayoutSet/ReviewSet mark tags that carry them.
+        [DataMember(EmitDefaultValue=false)] public bool LayoutSet,ReviewSet,Review;
+        [DataMember(EmitDefaultValue=false)] public int MaxLines;
+        [DataMember(EmitDefaultValue=false)] public double WidthFactor,FixedWidth;
         public string Serialize(){using(var s=new MemoryStream()){new DataContractJsonSerializer(typeof(RoomTag)).WriteObject(s,this);return Encoding.UTF8.GetString(s.ToArray());}}
         public static RoomTag Parse(string json){if(json==null||json.Length>100000)throw new ArgumentException("Dữ liệu tên phòng quá dài.");using(var s=new MemoryStream(Encoding.UTF8.GetBytes(json))){var v=(RoomTag)new DataContractJsonSerializer(typeof(RoomTag)).ReadObject(s);if(v==null||v.Schema!=1||String.IsNullOrEmpty(v.Id))throw new ArgumentException("Dữ liệu tên phòng không hợp lệ.");return v;}}
     }
@@ -128,7 +133,7 @@ namespace MedGas2024.Core
         {
             if(tag==null){reason="Không có ID Mr.T.";return false;}
             if(row==null){reason="Không có ID duy nhất trong Excel.";return false;}
-            if(!String.Equals(displayed??"",tag.LastText??"",StringComparison.Ordinal)){reason="Chữ đã sửa thủ công; cần kiểm tra.";return false;}
+            if(!String.Equals(RoomLayout.Plain(displayed),RoomLayout.Plain(tag.LastText),StringComparison.Ordinal)){reason="Chữ đã sửa thủ công; cần kiểm tra.";return false;}
             if(String.IsNullOrWhiteSpace(Desired(row,newName))){reason=newName?"Tên mới đang trống.":"Tên cũ đang trống.";return false;}
             reason="";return true;
         }
@@ -146,6 +151,8 @@ namespace MedGas2024.Core
         [DataMember] public bool Upper=true,ReplaceOld=true,Mask;
         // AutoCAD colour index: normal rooms and rooms that need a check (split by position, stacked split, repeated code).
         [DataMember] public int Color=158,ReviewColor=1;
+        // 2.0.2.7: wrap to at most MaxLines lines (0 = one line) unless Width (Fixed width) is set; WidthFactor squeezes letters.
+        [DataMember] public int MaxLines=3;[DataMember] public double WidthFactor=1;[DataMember] public bool LayoutDecided;
         public RoomLabelStyle Copy(){return (RoomLabelStyle)MemberwiseClone();}
         // Settings read from an older or edited file may miss values.
         public RoomLabelStyle Valid()
@@ -160,6 +167,10 @@ namespace MedGas2024.Core
             if(!Profile.Finite(v.Radius)||v.Radius<0||v.Radius>10)v.Radius=0.6;
             if(v.Color<1||v.Color>255)v.Color=158;
             if(v.ReviewColor<1||v.ReviewColor>255)v.ReviewColor=1;
+            // Settings saved before 2.0.2.7 used a fixed MTEXT width; switch them to Max lines 3.
+            if(!v.LayoutDecided){v.MaxLines=3;v.WidthFactor=1;v.Width=0;v.LayoutDecided=true;}
+            if(v.MaxLines<0||v.MaxLines>20)v.MaxLines=3;
+            if(!Profile.Finite(v.WidthFactor)||v.WidthFactor<0.3||v.WidthFactor>3)v.WidthFactor=1;
             return v;
         }
     }

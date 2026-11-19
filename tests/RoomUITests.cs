@@ -57,14 +57,14 @@ public static class RoomUITests
             Check(source.Value==RoomCatalog.DefaultLayer&&target.Value==RoomCatalog.NewLayer,"Old names on the default layer move the target to a separate new-name layer");
         }
         var remembered=new RoomSettings{ExcelPath=args[0],Sheet="Tầng 2",HeaderRow=3,OldColumn=1,NewColumn=2,IdColumn=0,SourceLayer="Tên phòng cũ",ShowNew=true,
-            Label=new RoomLabelStyle{Layer="Mr.T Phòng tầng 4",Style="Standard",Height=400,Width=3000,Upper=false,Frame=RoomLabelStyle.FrameSlot,Pad=.3,Radius=1,ReplaceOld=false}};
+            Label=new RoomLabelStyle{Layer="Mr.T Phòng tầng 4",Style="Standard",Height=400,Width=3000,Upper=false,Frame=RoomLabelStyle.FrameSlot,Pad=.3,Radius=1,ReplaceOld=false,MaxLines=2,WidthFactor=.8,LayoutDecided=true}};
         RoomSettings saved=null;
         using(var f=new RoomForm((r,m,s)=>true,(c,m)=>{},new[]{"0","Tên phòng cũ"},new[]{"Standard"},null,null,remembered,s=>saved=s))
         {
             var grid=(DataGridView)Field(f,"grid");
             Check(((ComboBox)Field(f,"sheet")).Text=="Tầng 2"&&grid.DataSource!=null&&((ICollection)grid.DataSource).Count==1,"The last Excel file, sheet, header row and columns are reopened and loaded");
             var look=f.LabelStyle;
-            Check(look.Height==400&&look.Width==3000&&!look.Upper&&look.Frame==RoomLabelStyle.FrameSlot&&look.Layer=="Mr.T Phòng tầng 4"&&!look.ReplaceOld&&((CheckBox)Field(f,"showNew")).Checked,"Label height, width, case, frame, new layer and options are restored");
+            Check(look.Height==400&&look.Width==3000&&look.MaxLines==2&&Math.Abs(look.WidthFactor-.8)<1e-9&&!look.Upper&&look.Frame==RoomLabelStyle.FrameSlot&&look.Layer=="Mr.T Phòng tầng 4"&&!look.ReplaceOld&&((CheckBox)Field(f,"showNew")).Checked,"Label height, width, case, frame, new layer and options are restored");
             Check(((SearchCombo)Field(f,"sourceLayer")).Value=="Tên phòng cũ","The old-name layer is restored");
             ((NumericUpDown)Field(f,"height")).Value=350;f.ShowInTaskbar=false;f.StartPosition=FormStartPosition.Manual;f.Left=-20000;f.Show();Application.DoEvents();f.Close();
             Check(saved!=null&&saved.Label.Height==350&&saved.Sheet=="Tầng 2"&&saved.OldColumn==1,"Choices are saved when the form closes");
@@ -73,18 +73,20 @@ public static class RoomUITests
         try{remembered.Save(path);var back=RoomSettings.Load(path);Check(back.Label.Height==350&&back.Label.Frame==RoomLabelStyle.FrameSlot&&back.ExcelPath==args[0],"Settings survive a save and reload");}
         finally{System.IO.File.Delete(path);}
         Check(RoomSettings.Load(path).Label.Height==250,"Missing settings fall back to defaults");
-        var placed=new List<RoomBlockInfo>{new RoomBlockInfo{Handle="1A",Space="Model",Id="410-1",Name="PHÒNG DUYỆT THUỐC",OldName="410",NewName="Phòng duyệt thuốc",Status=RoomCatalog.StatusSplit,Note="Tách 410: cần kiểm tra",Layer="Mr.T Tên phòng mới",Height=250,Width=2400,Color=1,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,Mask=true},
-            new RoomBlockInfo{Handle="1B",Space="Model",Id="401",Name="KHO CẤP PHÁT LẺ",OldName="401",NewName="Kho cấp phát lẻ",Status=RoomCatalog.StatusRename,Note="",Layer="Mr.T Tên phòng mới",Height=250,Width=2400,Color=158,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,Mask=true}};
+        var placed=new List<RoomBlockInfo>{new RoomBlockInfo{Handle="1A",Space="Model",Id="410-1",Name="PHÒNG DUYỆT THUỐC",OldName="410",NewName="Phòng duyệt thuốc",Status=RoomCatalog.StatusSplit,Note="Tách 410: cần kiểm tra",Layer="Mr.T Tên phòng mới",Height=250,Width=2400,Color=1,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,Mask=true,Checked=false,MaxLines=3,WidthFactor=1},
+            new RoomBlockInfo{Handle="1B",Space="Model",Id="401",Name="KHO CẤP PHÁT LẺ",OldName="401",NewName="Kho cấp phát lẻ",Status=RoomCatalog.StatusRename,Note="",Layer="Mr.T Tên phòng mới",Height=250,Width=2400,Color=158,Frame=RoomLabelStyle.FrameRounded,Pad=.4,Radius=.6,Mask=true,Checked=true,MaxLines=3,WidthFactor=1}};
         using(var manager=new RoomManagerForm(placed.Select(r=>r.Copy()).ToList(),placed,"Thử"))
         {
             manager.ShowInTaskbar=false;manager.StartPosition=FormStartPosition.Manual;manager.Left=-20000;manager.Show();Application.DoEvents();
             var grid=Controls<DataGridView>(manager).Single();
-            Check(grid.Rows.Count==2&&grid.Columns.Cast<DataGridViewColumn>().Any(c=>c.HeaderText=="Lề (× Text height)")&&grid.Columns.Cast<DataGridViewColumn>().All(c=>c.SortMode==DataGridViewColumnSortMode.Automatic),"Manager lists placed rooms with sortable columns in Text height terms");
-            var filter=Controls<ComboBox>(manager).First(c=>c.Items.Contains("Cần kiểm tra"));filter.SelectedItem="Cần kiểm tra";Check(grid.Rows.Count==1,"Manager filter shows rooms to check");filter.SelectedIndex=0;
+            Check(grid.Rows.Count==2&&grid.Columns.Cast<DataGridViewColumn>().Any(c=>c.HeaderText=="Padding (× Text height)")&&grid.Columns.Cast<DataGridViewColumn>().All(c=>c.SortMode==DataGridViewColumnSortMode.Automatic),"Manager lists placed rooms with sortable columns in Text height terms");
+            var filter=Controls<ComboBox>(manager).First(c=>c.Items.Contains("Chưa Checked"));filter.SelectedItem="Chưa Checked";Check(grid.Rows.Count==1,"Manager filter shows rooms not yet Checked");filter.SelectedIndex=0;
             grid.ClearSelection();foreach(DataGridViewRow r in grid.Rows)r.Selected=true;
-            ((NumericUpDown)Field(manager,"height")).Value=300;((ComboBox)Field(manager,"frame")).SelectedItem=RoomLabelStyle.FrameSlot;((ComboBox)Field(manager,"mask")).SelectedItem="Không";
+            ((NumericUpDown)Field(manager,"height")).Value=300;((ComboBox)Field(manager,"frame")).SelectedItem=RoomLabelStyle.FrameSlot;((ComboBox)Field(manager,"mask")).SelectedItem="No";
+            ((NumericUpDown)Field(manager,"lines")).Value=2;((NumericUpDown)Field(manager,"factor")).Value=.85M;((ComboBox)Field(manager,"check")).SelectedItem="Yes";
             Buttons(manager).Single(b=>b.Text.StartsWith("Áp cho dòng")).PerformClick();
-            Check(manager.Rows.All(r=>r.Changed&&r.Height==300&&r.Frame==RoomLabelStyle.FrameSlot&&!r.Mask&&r.Width==2400),"Bulk apply changes height, frame and wipeout of the selected rooms only");
+            Check(manager.Rows.All(r=>r.Changed&&r.Height==300&&r.Frame==RoomLabelStyle.FrameSlot&&!r.Mask&&r.Width==2400&&r.MaxLines==2&&Math.Abs(r.WidthFactor-.85)<1e-9&&r.Checked),"Bulk apply sets Text height, Max lines, Width factor, Frame, Wipeout and Checked; Fixed width kept");
+            Check(grid.Columns.Cast<DataGridViewColumn>().Any(c=>c.HeaderText=="Checked")&&!grid.Columns.Cast<DataGridViewColumn>().Any(c=>c.HeaderText=="Màu"),"Checked replaces the raw colour column");
             var xlsx=System.IO.Path.Combine(System.IO.Path.GetTempPath(),"MrT-room-manager-"+Guid.NewGuid().ToString("N")+".xlsx");
             try
             {

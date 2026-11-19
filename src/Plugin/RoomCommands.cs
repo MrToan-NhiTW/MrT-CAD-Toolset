@@ -85,7 +85,8 @@ namespace MedGas2024.Plugin
                     if(answer!=System.Windows.Forms.DialogResult.OK)return;
                     using(doc.LockDocument())
                     {
-                        int n=RoomService.SaveRoomBlocks(doc.Database,rows.Where(r=>r.Changed));doc.Editor.Regen();
+                        var colors=RoomSettings.Load(RoomSettings.DefaultPath).Label.Valid();
+                        int n=RoomService.SaveRoomBlocks(doc.Database,rows.Where(r=>r.Changed),colors.Color,colors.ReviewColor);doc.Editor.Regen();
                         doc.Editor.WriteMessage("\nMr.T: đã cập nhật "+n+" phòng. UNDO để hoàn tác.");
                         System.Windows.Forms.MessageBox.Show("Đã cập nhật "+n+" phòng.","Mr.T quản lý phòng");
                     }

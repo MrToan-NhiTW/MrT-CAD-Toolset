@@ -15,31 +15,35 @@ namespace MedGas2024.Core
         public string Handle{get;set;}public string Space{get;set;}public string Id{get;set;}
         public string Name{get;set;}public string OldName{get;set;}public string NewName{get;set;}public string Status{get;set;}public string Note{get;set;}
         public string Layer{get;set;}public double Height{get;set;}public double Width{get;set;}public int Color{get;set;}
+        // Checked = reviewed (normal colour); MaxLines wraps automatically when Width (Fixed width) is 0.
+        public bool Checked{get;set;}public int MaxLines{get;set;}public double WidthFactor{get;set;}
         public string Frame{get;set;}public double Pad{get;set;}public double Radius{get;set;}public bool Mask{get;set;}
         public bool Changed{get;set;}
         public RoomBlockInfo Copy(){return (RoomBlockInfo)MemberwiseClone();}
         public bool SameAs(RoomBlockInfo o)
         {
             return o!=null&&Name==o.Name&&OldName==o.OldName&&NewName==o.NewName&&Status==o.Status&&Note==o.Note&&Layer==o.Layer&&
-                Height==o.Height&&Width==o.Width&&Color==o.Color&&Frame==o.Frame&&Pad==o.Pad&&Radius==o.Radius&&Mask==o.Mask;
+                Height==o.Height&&Width==o.Width&&Color==o.Color&&Frame==o.Frame&&Pad==o.Pad&&Radius==o.Radius&&Mask==o.Mask&&
+                Checked==o.Checked&&MaxLines==o.MaxLines&&WidthFactor==o.WidthFactor;
         }
         // Checks values a user typed; returns null when they can be written.
         public string Problem()
         {
             if(String.IsNullOrWhiteSpace(Name))return "Tên hiển thị đang trống.";
             if(!Profile.Finite(Height)||Height<=0)return "Cao chữ phải lớn hơn 0.";
-            if(!Profile.Finite(Width)||Width<0)return "Rộng MTEXT không được âm.";
-            if(Color<1||Color>256)return "Màu là chỉ số AutoCAD 1–255 (256 = ByLayer).";
+            if(!Profile.Finite(Width)||Width<0)return "Fixed width không được âm (0 = tự tính theo Max lines).";
+            if(MaxLines<0||MaxLines>20)return "Max lines từ 0 (một dòng) đến 20.";
+            if(!Profile.Finite(WidthFactor)||WidthFactor<0.3||WidthFactor>3)return "Width factor từ 0.3 đến 3.";
             if(!RoomLabelStyle.Frames.Contains(Frame))return "Khung phải là: "+String.Join(", ",RoomLabelStyle.Frames)+".";
-            if(!Profile.Finite(Pad)||Pad<0||Pad>10||!Profile.Finite(Radius)||Radius<0||Radius>10)return "Lề và bo góc là bội số Text height từ 0 đến 10.";
+            if(!Profile.Finite(Pad)||Pad<0||Pad>10||!Profile.Finite(Radius)||Radius<0||Radius>10)return "Padding và Corner radius là bội số Text height từ 0 đến 10.";
             if(String.IsNullOrWhiteSpace(Layer))return "Layer đang trống.";
             return null;
         }
-        public static readonly string[] Columns={"Handle","Không gian","Mã phòng","Tên hiển thị","Tên cũ","Tên mới","Trạng thái","Ghi chú","Layer","Text height","Rộng MTEXT","Màu","Khung","Lề (× Text height)","Bo góc (× Text height)","Nền che"};
+        public static readonly string[] Columns={"Handle","Space","Mã phòng","Tên hiển thị","Tên cũ","Tên mới","Trạng thái","Ghi chú","Checked","Layer","Text height","Max lines","Width factor","Fixed width","Frame","Padding (× Text height)","Corner radius (× Text height)","Wipeout"};
         public string[] Cells()
         {
             var c=CultureInfo.InvariantCulture;
-            return new[]{Handle,Space,Id,Name,OldName,NewName,Status,Note,Layer,Height.ToString("0.#####",c),Width.ToString("0.#####",c),Color.ToString(c),Frame,Pad.ToString("0.##",c),Radius.ToString("0.##",c),Mask?"Có":"Không"};
+            return new[]{Handle,Space,Id,Name,OldName,NewName,Status,Note,Checked?"Yes":"No",Layer,Height.ToString("0.#####",c),MaxLines.ToString(c),WidthFactor.ToString("0.###",c),Width.ToString("0.#####",c),Frame,Pad.ToString("0.##",c),Radius.ToString("0.##",c),Mask?"Yes":"No"};
         }
     }
 
@@ -102,10 +106,11 @@ namespace MedGas2024.Core
                 Action<string,Action<string>> text=(name,set)=>{var v=get(row,name);if(v!=null)set(v.Trim());};
                 Action<string,Action<double>> number=(name,set)=>{int c;if(head.TryGetValue(name,out c)&&sheet.Cell(row,c).Number.HasValue){set(sheet.Cell(row,c).Number.Value);return;}var v=get(row,name);double d;if(String.IsNullOrWhiteSpace(v))return;if(Double.TryParse(v.Trim().Replace(',','.'),NumberStyles.Float,ci,out d))set(d);else problems.Add("Dòng "+row+": "+name+" không phải số ("+v+").");};
                 text("Tên hiển thị",v=>next.Name=v);text("Tên cũ",v=>next.OldName=v);text("Tên mới",v=>next.NewName=v);text("Trạng thái",v=>next.Status=v);
-                text("Ghi chú",v=>next.Note=v);text("Layer",v=>next.Layer=v);text("Khung",v=>next.Frame=v);
-                text("Nền che",v=>next.Mask=RoomSearch.Fold(v)=="co"||v=="1"||String.Equals(v,"true",StringComparison.OrdinalIgnoreCase));
-                number("Text height",v=>next.Height=v);number("Rộng MTEXT",v=>next.Width=v);number("Màu",v=>next.Color=(int)Math.Round(v));
-                number("Lề (× Text height)",v=>next.Pad=v);number("Bo góc (× Text height)",v=>next.Radius=v);
+                Func<string,bool> yes=v=>{var f=RoomSearch.Fold(v);return f=="yes"||f=="y"||f=="co"||f=="x"||f=="1"||f=="true";};
+                text("Ghi chú",v=>next.Note=v);text("Layer",v=>next.Layer=v);text("Frame",v=>next.Frame=v);
+                text("Wipeout",v=>next.Mask=yes(v));text("Checked",v=>next.Checked=yes(v));
+                number("Text height",v=>next.Height=v);number("Fixed width",v=>next.Width=v);number("Max lines",v=>next.MaxLines=(int)Math.Round(v));number("Width factor",v=>next.WidthFactor=v);
+                number("Padding (× Text height)",v=>next.Pad=v);number("Corner radius (× Text height)",v=>next.Radius=v);
                 var problem=next.Problem();
                 if(problem!=null){problems.Add("Dòng "+row+" ("+target.Id+"): "+problem);continue;}
                 if(next.SameAs(target))continue;
