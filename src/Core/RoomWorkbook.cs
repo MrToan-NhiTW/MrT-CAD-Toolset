@@ -58,11 +58,26 @@ namespace MedGas2024.Core
             }
             if(result.Sheets.Count==0)throw new InvalidDataException("Không đọc được sheet nào trong tệp Excel.");return result;
         }
+        static bool Header(string text,bool old)
+        {
+            string key=RoomCatalog.MatchName(text).ToLowerInvariant();
+            return old?(key=="tên cũ"||key=="tên phòng cũ"||key=="ten cu"||key=="ten phong cu"):
+                       (key=="tên mới"||key=="tên phòng mới"||key=="ten moi"||key=="ten phong moi");
+        }
+        public static int HeaderRow(RoomSheet sheet)
+        {
+            foreach(var row in sheet.Rows.Take(50))
+                if(row.Value.Values.Any(c=>Header(c.Text,true))&&row.Value.Values.Any(c=>Header(c.Text,false)))return row.Key;
+            return 1;
+        }
         public static RoomCatalog Catalog(RoomSheet sheet,int headerRow,int oldCol,int newCol,int idCol)
         {
             if(oldCol<1||newCol<1)throw new ArgumentException("Chọn cột tên cũ và tên mới.");if(oldCol==newCol)throw new ArgumentException("Tên cũ và tên mới phải chọn hai cột khác nhau.");var rows=new List<RoomEntry>();var problems=new List<string>();var invalidNames=new List<string>();
             foreach(var pair in sheet.Rows.Where(x=>x.Key>headerRow)){
                 var a=sheet.Cell(pair.Key,oldCol);var b=sheet.Cell(pair.Key,newCol);var id=idCol>0?sheet.Cell(pair.Key,idCol):a;
+                if(Header(a.Text,true)&&Header(b.Text,false)){
+                    problems.Add("Dòng "+pair.Key+" là tiêu đề cột, đã bỏ qua.");continue;
+                }
                 string error=String.Join(" ",new[]{a.Error,b.Error,id.Error}.Where(s=>!String.IsNullOrEmpty(s)).Distinct());
                 if(error.Length>0){invalidNames.Add(RoomCatalog.MatchName(a.Text));problems.Add("Dòng "+pair.Key+": "+error);continue;}
                 if(String.IsNullOrWhiteSpace(a.Text)&&String.IsNullOrWhiteSpace(b.Text)&&String.IsNullOrWhiteSpace(id.Text))continue;

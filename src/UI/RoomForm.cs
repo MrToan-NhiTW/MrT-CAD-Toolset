@@ -8,6 +8,8 @@ namespace MedGas2024.UI
 {
     public sealed class RoomForm:Form
     {
+        public double LabelHeight {get{return (double)height.Value;}}
+        public event Action InspectTag;
         readonly ComboBox sourceLayer=Combo(),targetLayer=Combo(),targetStyle=Combo();
         readonly TextBox file=new TextBox{ReadOnly=true,Width=280},search=new TextBox{Width=230};
         readonly ComboBox sheet=Combo(),oldCol=Combo(),newCol=Combo(),idCol=Combo();
@@ -25,7 +27,7 @@ namespace MedGas2024.UI
             Action<RoomCatalog,bool,string,string,string> scan)
         {
             UiTheme.Attach(this);
-            Text="Mr.T Tên phòng | 2.0.2.1";Font=UiStyle.Body();Size=new Size(1220,800);
+            Text="Mr.T Tên phòng | 2.0.2.2";Font=UiStyle.Body();Size=new Size(1220,800);
             MinimumSize=new Size(990,690);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=8};
             foreach(int pixels in new[]{36,39,80,-1,65,65,46,50})
@@ -36,7 +38,7 @@ namespace MedGas2024.UI
             var mapping=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=true,AutoScroll=true};Field(mapping,"Cột Excel chứa tên cũ",oldCol);Field(mapping,"Cột Excel chứa tên mới",newCol);Field(mapping,"Cột mã phòng (ID)",idCol);var load=new Button{Text="Nạp / kiểm tra danh sách",AutoSize=true};mapping.Controls.Add(load);var issues=new Button{Text="Xem lỗi Excel",AutoSize=true};mapping.Controls.Add(issues);mapping.Controls.Add(new Label{Text="Mặc định ID = tên cũ ban đầu. Excel số/mã cần lưu dạng văn bản.",AutoSize=true,Margin=new Padding(8,7,0,0)});root.Controls.Add(mapping,0,2);
             UiStyle.Grid(grid);grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName="Id",HeaderText="ID / tên gốc",Width=230});grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName="OldName",HeaderText="Tên cũ",Width=300});grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName="NewName",HeaderText="Tên mới",AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill});grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName="ExcelRow",HeaderText="Dòng Excel",Width=85});root.Controls.Add(grid,0,3);
             var settings=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoScroll=true};
-            sourceLayer.Items.Add("(Chọn layer chữ cũ)");sourceLayer.Items.AddRange(layers);sourceLayer.SelectedIndex=0;
+            sourceLayer.Items.Add("(Tất cả layer nội bộ)");sourceLayer.Items.AddRange(layers);sourceLayer.SelectedIndex=0;
             SetChoices(targetLayer,layers,RoomCatalog.DefaultLayer);SetChoices(targetStyle,styles,RoomCatalog.DefaultStyle);
             Field(settings,"Layer chữ cũ",sourceLayer);Field(settings,"Layer đích",targetLayer);Field(settings,"Kiểu chữ",targetStyle);
             root.Controls.Add(settings,0,4);
@@ -49,15 +51,16 @@ namespace MedGas2024.UI
             var auto=new Button{Text="Rà soát layer và gắn…",AutoSize=true,Enabled=scan!=null};
             var run=new Button{Text="Cập nhật phòng đã gắn…",AutoSize=true};
             var close=new Button{Text="Đóng",AutoSize=true};
-            actions.Controls.AddRange(new Control[]{add,locate,auto,run,close});root.Controls.Add(actions,0,6);root.Controls.Add(state,0,7);
+            var info=new Button{Text="Xem ID của chữ…",AutoSize=true};info.Click+=delegate{if(InspectTag!=null)Guard(InspectTag);};
+            actions.Controls.AddRange(new Control[]{add,locate,auto,run,info,close});root.Controls.Add(actions,0,6);root.Controls.Add(state,0,7);
             state.Text="Chọn Excel và nạp danh sách. Chọn một phòng để tìm chữ hoặc gắn tại điểm. Để gắn hàng loạt, chọn layer chữ cũ rồi rà soát.";
             locate.Click+=delegate{Guard(()=>{var row=SelectedRoom();if(find(row,(double)height.Value,showNew.Checked,
                 sourceLayer.SelectedIndex>0?sourceLayer.Text:null,targetLayer.Text,targetStyle.Text))NextRoom();});};
             auto.Click+=delegate{Guard(()=>{if(catalog==null)throw new ArgumentException("Hãy nạp danh sách Excel.");
-                if(sourceLayer.SelectedIndex<=0)throw new ArgumentException("Chọn layer chữ cũ cần rà soát.");
-                scan(catalog,showNew.Checked,sourceLayer.Text,targetLayer.Text,targetStyle.Text);});};
-            browse.Click+=delegate{Guard(()=>{using(var d=new OpenFileDialog{Filter="Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm",Title="Chọn danh sách tên phòng"})if(d.ShowDialog(this)==DialogResult.OK){var loaded=RoomWorkbook.Read(d.FileName);book=loaded;file.Text=d.FileName;loading=true;try{sheet.Items.Clear();foreach(var s in book.Sheets)sheet.Items.Add(s.Name);sheet.SelectedIndex=0;}finally{loading=false;}SetColumns();}});};
-            sheet.SelectedIndexChanged+=delegate{if(!loading)Guard(SetColumns);};header.ValueChanged+=delegate{if(!loading&&book!=null)Guard(SetColumns);};
+                
+                scan(catalog,showNew.Checked,sourceLayer.SelectedIndex==0?null:sourceLayer.Text,targetLayer.Text,targetStyle.Text);});};
+            browse.Click+=delegate{Guard(()=>{using(var d=new OpenFileDialog{Filter="Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm",Title="Chọn danh sách tên phòng"})if(d.ShowDialog(this)==DialogResult.OK){var loaded=RoomWorkbook.Read(d.FileName);book=loaded;file.Text=d.FileName;loading=true;try{sheet.Items.Clear();foreach(var s in book.Sheets)sheet.Items.Add(s.Name);sheet.SelectedIndex=0;}finally{loading=false;}SelectSheet();}});};
+            sheet.SelectedIndexChanged+=delegate{if(!loading)Guard(SelectSheet);};header.ValueChanged+=delegate{if(!loading&&book!=null)Guard(SetColumns);};
             oldCol.SelectedIndexChanged+=delegate{if(!loading)InvalidateCatalog();};newCol.SelectedIndexChanged+=delegate{if(!loading)InvalidateCatalog();};idCol.SelectedIndexChanged+=delegate{if(!loading)InvalidateCatalog();};
             load.Click+=delegate{Guard(()=>{if(book==null||sheet.SelectedIndex<0)throw new ArgumentException("Chọn file Excel trước.");catalog=RoomWorkbook.Catalog(book.Sheets[sheet.SelectedIndex],(int)header.Value,oldCol.SelectedIndex+1,newCol.SelectedIndex+1,idCol.SelectedIndex);RefreshRows();state.Text="Đã nạp "+catalog.Unique.Count+" ID duy nhất; "+catalog.Ambiguous.Count+" ID xung đột; "+catalog.Problems.Count+" cảnh báo. "+String.Join(" | ",catalog.Problems.Take(4));});};
             issues.Click+=delegate{Guard(()=>{if(catalog==null)throw new ArgumentException("Hãy nạp danh sách Excel trước.");using(var dialog=new Form{Text="Chi tiết lỗi Excel",Size=new Size(850,500),StartPosition=FormStartPosition.CenterParent}){var text=new TextBox{Dock=DockStyle.Fill,ReadOnly=true,Multiline=true,ScrollBars=ScrollBars.Both,WordWrap=false,Text=catalog.Problems.Count==0?"Không có cảnh báo.":String.Join("\r\n",catalog.Problems)};dialog.Controls.Add(text);dialog.ShowDialog(this);}});};
@@ -78,6 +81,14 @@ namespace MedGas2024.UI
             box.SelectedIndex=0;
         }
         void InvalidateCatalog(){catalog=null;grid.DataSource=null;state.Text="Thông số nhập thay đổi; bấm Nạp / kiểm tra danh sách.";}
+        void SelectSheet()
+        {
+            if(book==null||sheet.SelectedIndex<0)return;
+            int detected=RoomWorkbook.HeaderRow(book.Sheets[sheet.SelectedIndex]);
+            loading=true;
+            try{header.Value=detected;}finally{loading=false;}
+            SetColumns();
+        }
         void SetColumns()
         {
             if(book==null||sheet.SelectedIndex<0)return;loading=true;try{var s=book.Sheets[sheet.SelectedIndex];oldCol.Items.Clear();newCol.Items.Clear();idCol.Items.Clear();idCol.Items.Add("Dùng tên cũ làm ID");for(int c=1;c<=s.Columns;c++){string title=s.Cell((int)header.Value,c).Text.Trim();
@@ -90,12 +101,27 @@ namespace MedGas2024.UI
     }
     public sealed class RoomReviewForm:Form
     {
-        public RoomReviewForm(List<RoomReviewRow> rows,string summary)
+        public RoomReviewRow SelectedRoom {get;private set;}
+        public RoomReviewForm(List<RoomReviewRow> rows,string summary,bool placement=false)
         {UiTheme.Attach(this);
             Text="Xem trước cập nhật tên phòng";Font=UiStyle.Body();Size=new Size(1100,670);MinimumSize=new Size(800,520);StartPosition=FormStartPosition.CenterParent;
             var root=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=1,RowCount=3};root.RowStyles.Add(new RowStyle(SizeType.Absolute,60));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));root.RowStyles.Add(new RowStyle(SizeType.Absolute,45));Controls.Add(root);root.Controls.Add(new Label{Text=summary,Dock=DockStyle.Fill},0,0);
-            var grid=new DataGridView{Dock=DockStyle.Fill,AutoGenerateColumns=false,ReadOnly=true,AllowUserToAddRows=false,RowHeadersVisible=false,DataSource=rows};UiStyle.Grid(grid);foreach(var col in new[]{new[]{"Handle","Handle","70"},new[]{"Id","ID gốc","190"},new[]{"Current","Hiện tại","220"},new[]{"After","Sau cập nhật","220"},new[]{"Status","Kết quả / lý do","260"}})grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName=col[0],HeaderText=col[1],Width=Int32.Parse(col[2])});root.Controls.Add(grid,0,1);
-            var buttons=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft};var cancel=new Button{Text="Hủy",AutoSize=true,DialogResult=DialogResult.Cancel};var ok=new Button{Text="Áp dụng dòng hợp lệ",AutoSize=true,DialogResult=DialogResult.OK,Enabled=rows.Any(r=>r.Status=="Sẵn sàng"||r.Status.StartsWith("Đã đúng"))};buttons.Controls.Add(cancel);buttons.Controls.Add(ok);root.Controls.Add(buttons,0,2);AcceptButton=ok;CancelButton=cancel;
+            var grid=new DataGridView{Dock=DockStyle.Fill,AutoGenerateColumns=false,ReadOnly=true,AllowUserToAddRows=false,SelectionMode=DataGridViewSelectionMode.FullRowSelect,MultiSelect=false,RowHeadersVisible=false,DataSource=rows};UiStyle.Grid(grid);foreach(var col in new[]{new[]{"Handle","Handle","70"},new[]{"Id","ID gốc","190"},new[]{"Current","Hiện tại","220"},new[]{"After","Sau cập nhật","220"},new[]{"Status","Kết quả / lý do","260"}})grid.Columns.Add(new DataGridViewTextBoxColumn{DataPropertyName=col[0],HeaderText=col[1],Width=Int32.Parse(col[2])});if(placement){
+                grid.Columns[0].Width=88;grid.Columns[1].Width=100;grid.Columns[2].Width=150;grid.Columns[3].Width=145;
+                grid.Columns.Insert(2,new DataGridViewTextBoxColumn{DataPropertyName="OldName",HeaderText="Tên cũ Excel",Width=135});
+                grid.Columns.Insert(3,new DataGridViewTextBoxColumn{DataPropertyName="NewName",HeaderText="Tên mới Excel",Width=135});
+            }
+            grid.Columns[grid.Columns.Count-1].AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill;
+            grid.Columns[grid.Columns.Count-1].MinimumWidth=180;
+            root.Controls.Add(grid,0,1);
+            var buttons=new FlowLayoutPanel{Dock=DockStyle.Fill,FlowDirection=FlowDirection.RightToLeft};var cancel=new Button{Text="Hủy",AutoSize=true,DialogResult=DialogResult.Cancel};var ok=new Button{Text="Áp dụng dòng hợp lệ",AutoSize=true,DialogResult=DialogResult.OK,Enabled=rows.Any(r=>r.Status=="Sẵn sàng"||r.Status.StartsWith("Đã đúng"))};buttons.Controls.Add(cancel);buttons.Controls.Add(ok);if(placement){
+                var point=new Button{Text="Chọn điểm cho riêng phòng này…",AutoSize=true};
+                Func<RoomReviewRow> selected=()=>grid.CurrentRow==null?null:grid.CurrentRow.DataBoundItem as RoomReviewRow;
+                Action enable=()=>{var row=selected();point.Enabled=row!=null&&row.CanPlace;};
+                point.Click+=delegate{SelectedRoom=selected();if(SelectedRoom!=null&&SelectedRoom.CanPlace)DialogResult=DialogResult.Retry;};
+                grid.SelectionChanged+=delegate{enable();};Shown+=delegate{enable();};buttons.Controls.Add(point);
+            }
+            root.Controls.Add(buttons,0,2);AcceptButton=ok;CancelButton=cancel;
         }
     }
 }

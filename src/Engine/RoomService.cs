@@ -23,6 +23,34 @@ namespace MedGas2024.Engine
         {
             if(e.ExtensionDictionary.IsNull)return null;var d=(DBDictionary)tr.GetObject(e.ExtensionDictionary,OpenMode.ForRead);if(!d.Contains(Key))return null;var x=(Xrecord)tr.GetObject(d.GetAt(Key),OpenMode.ForRead);using(var data=x.Data)return String.Concat(data.AsArray().Select(v=>Convert.ToString(v.Value)));
         }
+        public static RoomTag ReadTag(Database db,ObjectId id)
+        {
+            using(var tr=db.TransactionManager.StartOpenCloseTransaction())
+            {
+                var e=tr.GetObject(id,OpenMode.ForRead) as Entity;
+                var json=e==null?null:Read(e,tr);
+                return json==null?null:RoomTag.Parse(json);
+            }
+        }
+        static IEnumerable<Entity> ManagedCandidates(BlockTableRecord space,Transaction tr)
+        {
+            foreach(ObjectId id in space)
+            {
+                var e=tr.GetObject(id,OpenMode.ForRead) as Entity;
+                if(e is MText||e is DBText){yield return e;continue;}
+                var br=e as BlockReference;
+                if(br==null||br is MInsertBlock)continue;
+                foreach(ObjectId aid in br.AttributeCollection)
+                {
+                    var attr=tr.GetObject(aid,OpenMode.ForRead) as AttributeReference;
+                    if(attr!=null)yield return attr;
+                }
+            }
+        }
+        static bool OwnerLocked(Entity e,Transaction tr)
+        {
+            return e is AttributeReference&&Unavailable(tr,(Entity)tr.GetObject(e.OwnerId,OpenMode.ForRead));
+        }
         static void Save(Entity e,Transaction tr,RoomTag tag)
         {
             if(e.ExtensionDictionary.IsNull)e.CreateExtensionDictionary();var d=(DBDictionary)tr.GetObject(e.ExtensionDictionary,OpenMode.ForWrite);Xrecord x;if(d.Contains(Key))x=(Xrecord)tr.GetObject(d.GetAt(Key),OpenMode.ForWrite);else{x=new Xrecord();d.SetAt(Key,x);tr.AddNewlyCreatedDBObject(x,true);}
@@ -45,9 +73,9 @@ namespace MedGas2024.Engine
         {
             var plan=new RoomPlan{NewMode=newMode};using(var tr=db.TransactionManager.StartOpenCloseTransaction()){
                 var blocks=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead);foreach(ObjectId bid in blocks){var space=(BlockTableRecord)tr.GetObject(bid,OpenMode.ForRead);if(!space.IsLayout||space.IsFromExternalReference||space.IsFromOverlayReference)continue;
-                    foreach(ObjectId id in space){var m=tr.GetObject(id,OpenMode.ForRead) as Entity;if(!(m is MText)&&!(m is DBText))continue;var json=Read(m,tr);if(json==null)continue;var c=new RoomChange{Id=id,Current=RoomText(m),Space=space.Name,ExpectedTag=json};plan.Rows.Add(c);
+                    foreach(var m in ManagedCandidates(space,tr)){var id=m.ObjectId;var json=Read(m,tr);if(json==null)continue;var c=new RoomChange{Id=id,Current=RoomText(m),Space=space.Name,ExpectedTag=json};plan.Rows.Add(c);
                         try{var tag=RoomTag.Parse(json);c.RoomId=tag.Id;var source=catalog==null?new RoomEntry{Id=tag.Id,OldName=tag.OldName,NewName=tag.NewName}:catalog.Find(tag.Id);c.Source=source;string reason;
-                            if(!RoomRules.CanUpdate(tag,c.Current,source,newMode,out reason)){c.Reason=reason;continue;}if(((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked){c.Reason="Layer đang khóa.";continue;}c.After=RoomRules.Desired(source,newMode);if(!WritableRoomText(m,c.After)){c.Reason="Chữ có field, định dạng hoặc ký tự cần kiểm tra.";continue;}c.Ready=true;c.Reason=c.Current==c.After?"Đã đúng; sẽ cập nhật dữ liệu nếu cần.":"Sẵn sàng";
+                            if(!RoomRules.CanUpdate(tag,c.Current,source,newMode,out reason)){c.Reason=reason;continue;}if(OwnerLocked(m,tr)||((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked){c.Reason="Layer đang khóa.";continue;}c.After=RoomRules.Desired(source,newMode);if(!WritableRoomText(m,c.After)){c.Reason="Chữ có field, định dạng hoặc ký tự cần kiểm tra.";continue;}c.Ready=true;c.Reason=c.Current==c.After?"Đã đúng; sẽ cập nhật dữ liệu nếu cần.":"Sẵn sàng";
                         }catch(Exception ex){c.Reason="Dữ liệu phòng không hợp lệ: "+ex.Message;}
                     }
                 }
@@ -57,7 +85,7 @@ namespace MedGas2024.Engine
         {
             if(plan==null)throw new ArgumentNullException("plan");int count=0;using(var tr=db.TransactionManager.StartTransaction()){
                 foreach(var c in plan.Rows.Where(x=>x.Ready)){
-                    if(c.Id.IsErased||!c.Id.IsValid)throw new InvalidOperationException("Đối tượng "+c.Id.Handle+" đã xóa; cần xem trước lại.");var m=(Entity)tr.GetObject(c.Id,OpenMode.ForWrite);if(Read(m,tr)!=c.ExpectedTag||RoomText(m)!=c.Current||!WritableRoomText(m,c.After)||((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked)throw new InvalidOperationException("Phòng "+c.RoomId+" đã đổi sau xem trước; cần xem trước lại.");
+                    if(c.Id.IsErased||!c.Id.IsValid)throw new InvalidOperationException("Đối tượng "+c.Id.Handle+" đã xóa; cần xem trước lại.");var m=(Entity)tr.GetObject(c.Id,OpenMode.ForWrite);if(Read(m,tr)!=c.ExpectedTag||RoomText(m)!=c.Current||!WritableRoomText(m,c.After)||OwnerLocked(m,tr)||((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked)throw new InvalidOperationException("Phòng "+c.RoomId+" đã đổi sau xem trước; cần xem trước lại.");
                     var tag=RoomTag.Parse(c.ExpectedTag);tag.OldName=c.Source.OldName;tag.NewName=c.Source.NewName;tag.ShowingNew=plan.NewMode;tag.LastText=c.After;if(c.Current!=c.After)SetRoomText(db,m,c.After);Save(m,tr,tag);count++;
                 }tr.Commit();return count;
             }

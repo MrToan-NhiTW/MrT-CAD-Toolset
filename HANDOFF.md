@@ -1,3 +1,11 @@
+# Bàn giao 2.0.2.2
+
+Nhánh **fix/rooms-blocks-2.0.2.2** tiếp nối **feat/rooms-2.0.2.1**. Bộ cài ở **releases/MrT_CAD_Toolset_2.0.2.2_Setup.exe**.
+
+MRTROOMS rà từng lần chèn block nội bộ, kể cả block lồng và layer 0 kế thừa. Thuộc tính một dòng của block chèn trực tiếp có thể nhận ID riêng. Với chữ thuộc định nghĩa dùng chung, công cụ tìm đến vị trí để đặt nhãn độc lập. Trong bảng rà soát, có thể chọn điểm cho riêng phòng Excel chưa tìm thấy. MRTROOMINFO đọc Xrecord MRT_ROOM_V1 ngay trên chữ. Ca kiểm thử MRTROOMS2016TEST gồm lưu và mở lại DWG để kiểm tra tag MTEXT và thuộc tính.
+
+Đã build, kiểm tra chọn riêng một dòng thiếu vị trí, nhận dòng tiêu đề Excel và kiểm tra SHA-256 của 135 tệp trong MSI. EXE có SHA-256 **8F00D052A31D6E6D841A4A6921A840F4CE733A6DC1764ACCF201CF8E51C866EC**. Core Console dừng trước khi chạy lệnh do lỗi khởi tạo profile (cả chế độ thông thường và /isolate). Chưa xác nhận việc mở lại DWG trong AutoCAD ở máy build.
+
 # Bàn giao 2.0.2.1
 
 Nhánh **feat/rooms-2.0.2.1** tiếp nối **fix/2.0.2.0**. Bộ cài offline ở **releases/MrT_CAD_Toolset_2.0.2.1_Setup.exe**.
