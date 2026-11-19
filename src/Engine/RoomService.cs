@@ -75,7 +75,7 @@ namespace MedGas2024.Engine
                 var blocks=(BlockTable)tr.GetObject(db.BlockTableId,OpenMode.ForRead);foreach(ObjectId bid in blocks){var space=(BlockTableRecord)tr.GetObject(bid,OpenMode.ForRead);if(!space.IsLayout||space.IsFromExternalReference||space.IsFromOverlayReference)continue;
                     foreach(var m in ManagedCandidates(space,tr)){var id=m.ObjectId;var json=Read(m,tr);if(json==null)continue;var c=new RoomChange{Id=id,Current=RoomText(m),Space=space.Name,ExpectedTag=json};plan.Rows.Add(c);
                         try{var tag=RoomTag.Parse(json);c.RoomId=tag.Id;var source=catalog==null?new RoomEntry{Id=tag.Id,OldName=tag.OldName,NewName=tag.NewName}:catalog.Find(tag.Id);c.Source=source;string reason;
-                            if(!RoomRules.CanUpdate(tag,c.Current,source,newMode,out reason)){c.Reason=reason;continue;}if(OwnerLocked(m,tr)||((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked){c.Reason="Layer đang khóa.";continue;}c.After=RoomRules.Desired(source,newMode);if(!WritableRoomText(m,c.After)){c.Reason="Chữ có field, định dạng hoặc ký tự cần kiểm tra.";continue;}c.Ready=true;c.Reason=c.Current==c.After?"Đã đúng; sẽ cập nhật dữ liệu nếu cần.":"Sẵn sàng";
+                            if(!RoomRules.CanUpdate(tag,c.Current,source,newMode,out reason)){c.Reason=reason;continue;}if(OwnerLocked(m,tr)||((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked){c.Reason="Layer đang khóa.";continue;}c.After=RoomRules.Display(source,newMode,tag.Upper);if(!WritableRoomText(m,c.After)){c.Reason="Chữ có field, định dạng hoặc ký tự cần kiểm tra.";continue;}c.Ready=true;c.Reason=RoomLayout.Plain(c.Current)==RoomLayout.Plain(c.After)?"Đã đúng; sẽ cập nhật dữ liệu nếu cần.":"Sẵn sàng";
                         }catch(Exception ex){c.Reason="Dữ liệu phòng không hợp lệ: "+ex.Message;}
                     }
                 }
@@ -86,7 +86,8 @@ namespace MedGas2024.Engine
             if(plan==null)throw new ArgumentNullException("plan");int count=0;using(var tr=db.TransactionManager.StartTransaction()){
                 foreach(var c in plan.Rows.Where(x=>x.Ready)){
                     if(c.Id.IsErased||!c.Id.IsValid)throw new InvalidOperationException("Đối tượng "+c.Id.Handle+" đã xóa; cần xem trước lại.");var m=(Entity)tr.GetObject(c.Id,OpenMode.ForWrite);if(Read(m,tr)!=c.ExpectedTag||RoomText(m)!=c.Current||!WritableRoomText(m,c.After)||OwnerLocked(m,tr)||((LayerTableRecord)tr.GetObject(m.LayerId,OpenMode.ForRead)).IsLocked)throw new InvalidOperationException("Phòng "+c.RoomId+" đã đổi sau xem trước; cần xem trước lại.");
-                    var tag=RoomTag.Parse(c.ExpectedTag);tag.OldName=c.Source.OldName;tag.NewName=c.Source.NewName;tag.ShowingNew=plan.NewMode;tag.LastText=c.After;if(c.Current!=c.After)SetRoomText(db,m,c.After);Save(m,tr,tag);count++;
+                    var tag=RoomTag.Parse(c.ExpectedTag);tag.OldName=c.Source.OldName;tag.NewName=c.Source.NewName;tag.ShowingNew=plan.NewMode;tag.LastText=c.After;if(!String.IsNullOrEmpty(c.Source.Status))tag.Status=c.Source.Status;if(RoomLayout.Plain(c.Current)!=RoomLayout.Plain(c.After))SetRoomText(db,m,c.After);Save(m,tr,tag);
+                    var attr=m as AttributeReference;if(attr!=null&&attr.Tag==TagName)RefreshRoomBlock(db,tr,attr,tag,c.Source);count++;
                 }tr.Commit();return count;
             }
         }

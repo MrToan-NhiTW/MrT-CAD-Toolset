@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.2.2" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{73EB4DDC-8E9C-4EAA-89BB-F97D21875CE1}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
+<ApplicationPackage SchemaVersion="1.0" AppVersion="2.0.2.7" Name="Mr.T CAD tool set" Description="Layer and Linetype management for AutoCAD 2024" Author="Mr.Toan-NhiTW" ProductCode="{924437EE-3A6C-4F7A-8D0D-81C42D6A64E1}" UpgradeCode="{71842E5F-26DC-4C7F-93D6-F51A7EF6E89A}" Icon="./Contents/Win64/Resources/MrT.ico" Helpfile="./Contents/Win64/Help/index.html">
   <CompanyDetails Name="Mr.Toan-NhiTW" />
   <Components Description="AutoCAD 2024 x64 - .NET Framework 4.8">
     <RuntimeRequirements OS="Win64" Platform="AutoCAD" SeriesMin="R24.3" SeriesMax="R24.3" />
-    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.2.2" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
+    <ComponentEntry AppName="MrT.CAD.Toolset" AppType=".Net" AppDescription="Mr.T CAD tool set - Layer + Linetype" Version="2.0.2.7" ModuleName="./Contents/Win64/MrT.CAD.Toolset.dll" LoadOnAutoCADStartup="True" LoadOnAppearance="False" LoadOnCommandInvocation="True">
       <AssemblyMappings><AssemblyMappingFolder Path="./Contents/Win64" /></AssemblyMappings>
       <Commands GroupName="MRT_CAD_TOOLSET">
         <Command Global="MRTUNIFYR" Local="MRTUNIFYR" /><Command Global="MRTDENSITY" Local="MRTDENSITY" /><Command Global="MRTTABLEMASK" Local="MRTTABLEMASK" /><Command Global="MRTJOIN" Local="MRTJOIN" /><Command Global="MRTJOINTOL" Local="MRTJOINTOL" /><Command Global="MRTBREAK" Local="MRTBREAK" /><Command Global="MRTALIASES" Local="MRTALIASES" />
@@ -12,7 +12,7 @@
         <Command Global="MRTLTYPE" Local="MRTLTYPE" />
         <Command Global="KHIYTE" Local="KHIYTE" />
         <Command Global="MRTPIPE" Local="MRTPIPE" /><Command Global="MRTFIXTEXT" Local="MRTFIXTEXT" /><Command Global="MRTSCALE" Local="MRTSCALE" /><Command Global="MRTHELP" Local="MRTHELP" /><Command Global="MRTRIBBON" Local="MRTRIBBON" />
-      <Command Global="MRTISO" Local="MRTISO" /><Command Global="MRTUNISO" Local="MRTUNISO" /><Command Global="MRTADDSIZES" Local="MRTADDSIZES" /><Command Global="MRTLEGEND" Local="MRTLEGEND" /><Command Global="MRTLEGEDIT" Local="MRTLEGEDIT" /><Command Global="MRTLEGSYNC" Local="MRTLEGSYNC" /><Command Global="MRTROOMINFO" Local="MRTROOMINFO" /><Command Global="MRTROOMS" Local="MRTROOMS" /><Command Global="MRTRESTORERAW" Local="MRTRESTORERAW" /></Commands>
+      <Command Global="MRTISO" Local="MRTISO" /><Command Global="MRTUNISO" Local="MRTUNISO" /><Command Global="MRTADDSIZES" Local="MRTADDSIZES" /><Command Global="MRTLEGEND" Local="MRTLEGEND" /><Command Global="MRTLEGEDIT" Local="MRTLEGEDIT" /><Command Global="MRTLEGSYNC" Local="MRTLEGSYNC" /><Command Global="MRTROOMINFO" Local="MRTROOMINFO" /><Command Global="MRTROOMLIST" Local="MRTROOMLIST" /><Command Global="MRTROOMS" Local="MRTROOMS" /><Command Global="MRTRESTORERAW" Local="MRTRESTORERAW" /></Commands>
     </ComponentEntry>
     <ComponentEntry AppName="MrT.Z0Clean" AppType="Lisp" ModuleName="./Contents/Win64/MrT_Z0Clean.lsp" PerDocument="True" LoadOnCommandInvocation="True" LoadOnAppearance="False">
       <Commands GroupName="MRT_Z0_CLEAN">

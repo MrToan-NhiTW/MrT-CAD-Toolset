@@ -34,6 +34,6 @@ try{
     if($LASTEXITCODE -ne 0){throw 'Asset build failed'}
     & (Join-Path $projectRoot 'bin\Assets.exe') $resources
     if($LASTEXITCODE -ne 0){throw 'Asset generation failed'}
-    & (Join-Path $projectRoot 'packaging\build-msi.ps1') -BundlePath $bundle -OutputPath (Join-Path $projectRoot 'installer\MrT_CAD_Toolset_2.0.2.2_AutoCAD2024_x64.msi')
+    & (Join-Path $projectRoot 'packaging\build-msi.ps1') -BundlePath $bundle -OutputPath (Join-Path $projectRoot 'installer\MrT_CAD_Toolset_2.0.2.7_AutoCAD2024_x64.msi')
     & (Join-Path $projectRoot 'packaging\build-setup.ps1')
 }finally{$env:TEMP=$oldTemp;$env:TMP=$oldTmp}

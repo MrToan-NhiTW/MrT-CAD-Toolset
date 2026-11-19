@@ -5,6 +5,7 @@ using Autodesk.AutoCAD.DatabaseServices;
 using MedGas2024.Core;
 using Autodesk.AutoCAD.Geometry;
 
+
 namespace MedGas2024.Engine
 {
     public sealed class RoomHit:RoomNameMatch
@@ -12,8 +13,15 @@ namespace MedGas2024.Engine
         public ObjectId Id,AttributeOwner;
         public string Path,StoredLayer;
         public bool OnSourceLayer,Shared;
+        public ObjectId Label;
         public Matrix3d ToWorld=Matrix3d.Identity;
         public string Address {get{return String.IsNullOrEmpty(Path)?Id.Handle.ToString():Path+"/"+Id.Handle;}}
+    }
+
+    public sealed class RoomApplyResult
+    {
+        public int Adopted,Labels,Replaced,Upgraded;public string HiddenLayer;
+        public int Total{get{return Adopted+Labels;}}
     }
 
     public static partial class RoomService
@@ -43,7 +51,7 @@ namespace MedGas2024.Engine
         static Tuple<ObjectId,ObjectId> ResolveRoomTarget(Database db,Transaction tr,string layer,string style)
         {
             var layers=(LayerTable)tr.GetObject(db.LayerTableId,OpenMode.ForRead);
-            if(!layers.Has(layer)&&layer==RoomCatalog.DefaultLayer)
+            if(!layers.Has(layer)&&(layer==RoomCatalog.DefaultLayer||layer==RoomCatalog.NewLayer))
             {
                 layers.UpgradeOpen();
                 var created=new LayerTableRecord{Name=layer};
@@ -77,8 +85,8 @@ namespace MedGas2024.Engine
         static bool WritableRoomText(Entity entity,string desired)
         {
             var attr=entity as AttributeReference;
-            if(attr!=null&&attr.IsMTextAttribute)return false;
             if(entity.HasFields||String.IsNullOrWhiteSpace(desired))return false;
+            if(attr!=null&&attr.IsMTextAttribute)return true;
             var m=entity as MText;
             if(m!=null)return m.Contents==m.Text||m.Contents==Literal(m.Text);
             return RoomNameMatcher.SingleLineSafe(desired);
@@ -87,6 +95,12 @@ namespace MedGas2024.Engine
         {
             var m=entity as MText;
             if(m!=null){m.Contents=Literal(desired);return;}
+            var attr=entity as AttributeReference;
+            if(attr!=null&&attr.IsMTextAttribute)
+            {
+                using(var value=attr.MTextAttribute){value.Contents=Literal(desired);attr.MTextAttribute=value;}
+                attr.UpdateMTextAttribute();return;
+            }
             var t=(DBText)entity;
             t.TextString=desired;
             t.AdjustAlignment(db);
@@ -159,16 +173,20 @@ namespace MedGas2024.Engine
             string existing=shared?null:Read(e,tr);
             if(!onSource&&existing==null)return;
             var hit=new RoomHit{Id=e.ObjectId,Path=path,ToWorld=transform,Shared=shared,AttributeOwner=attrOwner,
-                Layer=effective,StoredLayer=e.Layer,OnSourceLayer=onSource,Text=RoomText(e),SingleLine=e is DBText};
+                Layer=effective,StoredLayer=e.Layer,OnSourceLayer=onSource,Text=RoomText(e),SingleLine=e is DBText,NeedsLabel=shared,
+                Direct=!shared&&attrOwner.IsNull&&(e is MText||e.GetType()==typeof(DBText))};
+            hit.Place=hit.Address;
+            try{var x=e.GeometricExtents;var c=(x.MinPoint+(x.MaxPoint-x.MinPoint)*0.5).TransformBy(transform);hit.X=c.X;hit.Y=c.Y;}
+            catch(Autodesk.AutoCAD.Runtime.Exception){var c=Point3d.Origin.TransformBy(transform);hit.X=c.X;hit.Y=c.Y;}
             if(existing!=null)
             {
-                try{hit.Tag=RoomTag.Parse(existing).Id;hit.Status="Đã gắn ID";}
-                catch(System.Runtime.Serialization.SerializationException){hit.Tag="";hit.Status="Dữ liệu ID không đọc được";}
-                catch(ArgumentException){hit.Tag="";hit.Status="Dữ liệu ID không hợp lệ";}
+                try{var tag=RoomTag.Parse(existing);hit.Tag=tag.Id;hit.Linked=tag.Source;hit.LegacyLabel=e is MText&&!String.IsNullOrEmpty(tag.Source);hit.Blocked="Đã gắn ID";}
+                catch(System.Runtime.Serialization.SerializationException){hit.Tag="";hit.Blocked="Dữ liệu ID không đọc được";}
+                catch(ArgumentException){hit.Tag="";hit.Blocked="Dữ liệu ID không hợp lệ";}
             }
-            else if(!available||Unavailable(tr,e))hit.Status="Chữ hoặc block bị ẩn, khóa hay đóng băng";
-            else if(shared)hit.Status="Chữ dùng chung trong block — chọn vị trí để gắn nhãn riêng";
-            else if(!WritableRoomText(e,hit.Text))hit.Status="Chữ có field, định dạng riêng hoặc ký tự đặc biệt";
+            else if(!available||Unavailable(tr,e))hit.Blocked="Chữ hoặc block bị ẩn, khóa hay đóng băng";
+            else if(!shared&&!WritableRoomText(e,hit.Text))hit.Blocked="Chữ có field, định dạng riêng hoặc ký tự đặc biệt";
+            hit.Status=hit.Blocked;
             result.Add(hit);
         }
 
@@ -181,11 +199,39 @@ namespace MedGas2024.Engine
 
         public static int Adopt(Database db,ObjectId spaceId,IEnumerable<RoomHit> selected,bool newMode,string layer,string style)
         {
+            return ApplyMatches(db,spaceId,selected,newMode,layer,style,false,null).Total;
+        }
+
+        // Applies reviewed matches in one transaction (one UNDO step): free text and
+        // instance attributes are adopted in place; text inside a shared block gets a
+        // separate MTEXT label at that instance's position. Optionally turns the
+        // source layer off afterwards.
+        public static RoomApplyResult ApplyMatches(Database db,ObjectId spaceId,IEnumerable<RoomHit> selected,bool newMode,
+            string layer,string style,bool mask,string hideLayer)
+        {
+            var result=new RoomApplyResult();
             using(var tr=db.TransactionManager.StartTransaction())
             {
                 var target=ResolveRoomTarget(db,tr,layer,style);
-                int count=0;
                 foreach(var hit in selected)
+                {
+                    if(hit.NeedsLabel){CreateLabel(db,tr,spaceId,hit,newMode,target,mask);result.Labels++;}
+                    else{AdoptOne(db,tr,spaceId,hit,newMode,target);result.Adopted++;}
+                }
+                if(!String.IsNullOrEmpty(hideLayer))
+                {
+                    var layers=(LayerTable)tr.GetObject(db.LayerTableId,OpenMode.ForRead);
+                    if(!layers.Has(hideLayer))throw new InvalidOperationException("Không tìm thấy layer "+hideLayer+".");
+                    var record=(LayerTableRecord)tr.GetObject(layers[hideLayer],OpenMode.ForWrite);
+                    if(!record.IsOff){record.IsOff=true;result.HiddenLayer=hideLayer;}
+                }
+                tr.Commit();
+            }
+            return result;
+        }
+
+        static void AdoptOne(Database db,Transaction tr,ObjectId spaceId,RoomHit hit,bool newMode,Tuple<ObjectId,ObjectId> target)
+        {
                 {
                     var e=(Entity)tr.GetObject(hit.Id,OpenMode.ForWrite);
                     var from=(LayerTableRecord)tr.GetObject(e.LayerId,OpenMode.ForRead);
@@ -211,10 +257,83 @@ namespace MedGas2024.Engine
                     SetRoomText(db,e,value);
                     Save(e,tr,new RoomTag{Id=hit.Entry.Id,Original=hit.Entry.OldName,OldName=hit.Entry.OldName,
                         NewName=hit.Entry.NewName,LastText=value,ShowingNew=newMode});
-                    count++;
                 }
-                tr.Commit();return count;
+        }
+
+        // Recomputes the instance transform from the INSERT handles in the address, so a
+        // label is never placed from a stale preview (moved, erased or re-nested insert).
+        static Matrix3d PathTransform(Database db,Transaction tr,ObjectId spaceId,RoomHit hit,Entity e)
+        {
+            var transform=Matrix3d.Identity;var owner=spaceId;var last=ObjectId.Null;
+            var parts=(hit.Path??"").Split(new[]{'/'},StringSplitOptions.RemoveEmptyEntries);
+            string changed="Block chứa chữ "+hit.Text+" đã thay đổi. Hãy rà soát lại.";
+            for(int i=0;i<parts.Length;i++)
+            {
+                ObjectId id;long value;
+                if(!Int64.TryParse(parts[i],System.Globalization.NumberStyles.HexNumber,System.Globalization.CultureInfo.InvariantCulture,out value)||
+                    !db.TryGetObjectId(new Handle(value),out id)||id.IsErased)throw new InvalidOperationException(changed);
+                var br=tr.GetObject(id,OpenMode.ForRead) as BlockReference;
+                if(br==null||br.OwnerId!=owner)throw new InvalidOperationException(changed);
+                // An attribute lives in the space that holds its INSERT, so the last
+                // INSERT of an attribute address does not transform it.
+                if(hit.AttributeOwner.IsNull||i<parts.Length-1)transform=transform*br.BlockTransform;
+                owner=br.BlockTableRecord;last=br.ObjectId;
             }
+            bool inside=hit.AttributeOwner.IsNull?e.OwnerId==owner:(e.OwnerId==hit.AttributeOwner&&last==hit.AttributeOwner);
+            if(!inside)throw new InvalidOperationException("Chữ "+hit.Text+" không còn trong block đã rà soát. Hãy rà soát lại.");
+            return transform;
+        }
+
+        static void CreateLabel(Database db,Transaction tr,ObjectId spaceId,RoomHit hit,bool newMode,Tuple<ObjectId,ObjectId> target,bool mask)
+        {
+            var value=RoomRules.Desired(hit.Entry,newMode);
+            if(String.IsNullOrWhiteSpace(value))throw new InvalidOperationException("Tên cần hiển thị của "+hit.Entry.Id+" đang trống.");
+            if(hit.Id.IsErased)throw new InvalidOperationException("Chữ "+hit.Text+" đã bị xóa. Hãy rà soát lại.");
+            var e=(Entity)tr.GetObject(hit.Id,OpenMode.ForRead);
+            var transform=PathTransform(db,tr,spaceId,hit,e);
+            if(RoomText(e)!=hit.Text||!transform.IsEqualTo(hit.ToWorld,new Tolerance(1e-9,1e-7)))
+                throw new InvalidOperationException("Chữ "+hit.Text+" đã thay đổi sau xem trước. Hãy rà soát lại.");
+            Point3d center;Vector3d direction,normal;double height;
+            TextFrame(e,out center,out direction,out normal,out height);
+            var up=normal.CrossProduct(direction);
+            var worldCenter=center.TransformBy(transform);
+            var worldDirection=direction.TransformBy(transform);
+            var worldUp=up.TransformBy(transform);
+            if(worldDirection.Length<1e-9||worldUp.Length<1e-9)throw new InvalidOperationException("Block chứa chữ "+hit.Text+" có tỷ lệ bằng 0.");
+            var worldNormal=worldDirection.CrossProduct(worldUp);
+            if(worldNormal.Length<1e-12)worldNormal=Vector3d.ZAxis;
+            worldNormal=worldNormal.GetNormal();
+            // A mirrored insert flips the plane; keep the label readable from above.
+            if(worldNormal.Z<0)worldNormal=worldNormal.Negate();
+            worldDirection=(worldDirection-worldNormal*worldDirection.DotProduct(worldNormal)).GetNormal();
+            double worldHeight=height*worldUp.Length;
+            if(!Profile.Finite(worldHeight)||worldHeight<=0)throw new InvalidOperationException("Không xác định được độ cao chữ "+hit.Text+".");
+            var space=(BlockTableRecord)tr.GetObject(spaceId,OpenMode.ForWrite);
+            var m=new MText();m.SetDatabaseDefaults(db);m.LayerId=target.Item1;m.TextStyleId=target.Item2;
+            m.Normal=worldNormal;m.Location=worldCenter;m.Direction=worldDirection;m.Attachment=AttachmentPoint.MiddleCenter;
+            m.TextHeight=worldHeight;m.Width=0;m.Contents=Literal(value);
+            if(mask){m.BackgroundFill=true;m.UseBackgroundColor=true;m.BackgroundScaleFactor=1.15;}
+            space.AppendEntity(m);tr.AddNewlyCreatedDBObject(m,true);
+            Save(m,tr,new RoomTag{Id=hit.Entry.Id,Original=hit.Entry.OldName,OldName=hit.Entry.OldName,NewName=hit.Entry.NewName,
+                LastText=value,ShowingNew=newMode,Source=hit.Address});
+            hit.Label=m.ObjectId;
+        }
+
+        // Centre, reading direction, plane and character height of a text in the
+        // coordinates of the block definition that holds it.
+        static void TextFrame(Entity e,out Point3d center,out Vector3d direction,out Vector3d normal,out double height)
+        {
+            var m=e as MText;
+            if(m!=null){normal=m.Normal;direction=m.Direction;height=m.TextHeight;}
+            else
+            {
+                var t=(DBText)e;normal=t.Normal;height=t.Height;
+                direction=new Vector3d(Math.Cos(t.Rotation),Math.Sin(t.Rotation),0).TransformBy(Matrix3d.PlaneToWorld(normal));
+            }
+            if(normal.Length<1e-12)normal=Vector3d.ZAxis;
+            normal=normal.GetNormal();direction=direction.Length<1e-12?Vector3d.XAxis:direction.GetNormal();
+            var extents=e.GeometricExtents;
+            center=extents.MinPoint+(extents.MaxPoint-extents.MinPoint)*0.5;
         }
     }
 }

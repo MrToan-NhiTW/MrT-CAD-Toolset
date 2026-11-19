@@ -61,6 +61,9 @@ namespace MedGas2024.Plugin
                 Small("Sửa bảng","MRTLEGEDIT","Chọn bảng Mr.T đã chèn để đổi font, thêm hàng và sắp lại bố cục.",command),
                 Small("Đồng bộ mẫu ống","MRTLEGSYNC","Cập nhật nét ống trong các bảng Mr.T theo ống nguồn, giữ tỷ lệ và độ rộng mẫu; có xem trước.",command)));
             legend.Items.Add(Button("Tên phòng\ncũ / mới","MRTROOMS","Chọn danh sách Excel, gắn tên phòng và chuyển hàng loạt theo ID gốc; có xem trước.",command));
+            legend.Items.Add(Stack(
+                Small("Quản lý phòng","MRTROOMLIST","Xem và sửa các block tên phòng đã đặt: tên, thuộc tính, Text height, khung, nền che, màu; sửa hàng loạt; xuất/nhập Excel hiện trạng.",command),
+                Small("Xem ID phòng","MRTROOMINFO","Chọn một tên phòng để xem ID, tên cũ, tên mới, trạng thái và các thuộc tính.",command)));
             var utility=Panel("Tiện ích");
             utility.Items.Add(Stack(
                 Small("Phím tắt (alias)","MRTALIASES","Quản lý alias, ví dụ 6 + Enter gọi MRTJOIN; hỏi trước khi thay alias cũ.",command),
