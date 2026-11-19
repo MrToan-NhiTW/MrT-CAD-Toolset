@@ -60,15 +60,15 @@ namespace MedGas2024.Core
         }
         public static RoomCatalog Catalog(RoomSheet sheet,int headerRow,int oldCol,int newCol,int idCol)
         {
-            if(oldCol<1||newCol<1)throw new ArgumentException("Chọn cột tên cũ và tên mới.");if(oldCol==newCol)throw new ArgumentException("Tên cũ và tên mới phải chọn hai cột khác nhau.");var rows=new List<RoomEntry>();var problems=new List<string>();
+            if(oldCol<1||newCol<1)throw new ArgumentException("Chọn cột tên cũ và tên mới.");if(oldCol==newCol)throw new ArgumentException("Tên cũ và tên mới phải chọn hai cột khác nhau.");var rows=new List<RoomEntry>();var problems=new List<string>();var invalidNames=new List<string>();
             foreach(var pair in sheet.Rows.Where(x=>x.Key>headerRow)){
                 var a=sheet.Cell(pair.Key,oldCol);var b=sheet.Cell(pair.Key,newCol);var id=idCol>0?sheet.Cell(pair.Key,idCol):a;
                 string error=String.Join(" ",new[]{a.Error,b.Error,id.Error}.Where(s=>!String.IsNullOrEmpty(s)).Distinct());
-                if(error.Length>0){problems.Add("Dòng "+pair.Key+": "+error);continue;}
+                if(error.Length>0){invalidNames.Add(RoomCatalog.MatchName(a.Text));problems.Add("Dòng "+pair.Key+": "+error);continue;}
                 if(String.IsNullOrWhiteSpace(a.Text)&&String.IsNullOrWhiteSpace(b.Text)&&String.IsNullOrWhiteSpace(id.Text))continue;
                 rows.Add(new RoomEntry{Id=id.Text,OldName=a.Text,NewName=b.Text,ExcelRow=pair.Key});
             }
-            var catalog=RoomCatalog.Build(rows);catalog.Problems.AddRange(problems);return catalog;
+            var catalog=RoomCatalog.Build(rows);catalog.BlockedNames.UnionWith(invalidNames);catalog.Problems.AddRange(problems);return catalog;
         }
     }
 }

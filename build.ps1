@@ -131,6 +131,7 @@ if($LASTEXITCODE -ne 0){throw 'Isolation assignment retention tests failed.'}
 Compile-Module 'HotfixTests.exe' @((Join-Path $projectRoot 'tests/HotfixTests.cs')) ($common+@($core,(Join-Path $binaryRoot 'MedGas2024.UI.dll'),'System.Windows.Forms.dll','System.Drawing.dll')) 'exe'
 & (Join-Path $binaryRoot 'HotfixTests.exe') $projectRoot
 if($LASTEXITCODE -ne 0){throw 'Hotfix scale/unit/POINT tests failed.'}
+Compile-Module 'RoomNativeRuntime.dll' @((Join-Path $projectRoot 'tests/RoomNativeRuntime.cs')) ($common+$api+@($core,(Join-Path $binaryRoot 'MedGas2024.Engine.dll')))
 Compile-Module 'LegendPipeSyncRuntime.dll' @((Join-Path $projectRoot 'tests/LegendPipeSyncRuntime.cs'),(Join-Path $projectRoot 'tests/FlattenRuntime2020.cs')) ($common+$api+@($core,(Join-Path $binaryRoot 'MedGas2024.Engine.dll')))
 Write-Output 'Build complete: bin\MrT.CAD.Toolset.dll'
 }

@@ -25,6 +25,13 @@ namespace MedGas2024.Core
     {
         public readonly Dictionary<string,RoomEntry> Unique=new Dictionary<string,RoomEntry>(StringComparer.Ordinal);
         public readonly HashSet<string> Ambiguous=new HashSet<string>(StringComparer.Ordinal);
+        public const string DefaultLayer="Mr.T Tên phòng";
+        public const string DefaultStyle="Mr.T Arial";
+        public readonly HashSet<string> BlockedNames=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public static string MatchName(string text)
+        {
+            return String.Join(" ",Key(text).Split((char[])null,StringSplitOptions.RemoveEmptyEntries));
+        }
         public readonly List<string> Problems=new List<string>();
         // The original name is an identifier, so do not remove accents, change
         // case, or collapse interior whitespace to guess a match.
@@ -32,11 +39,11 @@ namespace MedGas2024.Core
         public static RoomCatalog Build(IEnumerable<RoomEntry> input)
         {
             var c=new RoomCatalog();foreach(var source in input){var id=Key(source.Id);var old=(source.OldName??"").Trim();var next=(source.NewName??"").Trim();
-                if(id.Length==0){if(old.Length>0||next.Length>0)c.Problems.Add("Dòng "+source.ExcelRow+": thiếu ID/tên gốc.");continue;}
+                if(id.Length==0){if(old.Length>0)c.BlockedNames.Add(MatchName(old));if(old.Length>0||next.Length>0)c.Problems.Add("Dòng "+source.ExcelRow+": thiếu ID/tên gốc.");continue;}
                 var row=new RoomEntry{Id=id,OldName=old,NewName=next,ExcelRow=source.ExcelRow};RoomEntry first;
                 if(c.Unique.TryGetValue(id,out first)){
-                    if(first.OldName!=row.OldName||first.NewName!=row.NewName){c.Unique.Remove(id);c.Ambiguous.Add(id);c.Problems.Add("ID trùng có nội dung khác: "+id+" (dòng "+first.ExcelRow+", "+row.ExcelRow+").");}
-                }else if(!c.Ambiguous.Contains(id))c.Unique.Add(id,row);
+                    if(first.OldName!=row.OldName||first.NewName!=row.NewName){c.BlockedNames.Add(MatchName(first.OldName));c.BlockedNames.Add(MatchName(row.OldName));c.Unique.Remove(id);c.Ambiguous.Add(id);c.Problems.Add("ID trùng có nội dung khác: "+id+" (dòng "+first.ExcelRow+", "+row.ExcelRow+").");}
+                }else if(!c.Ambiguous.Contains(id))c.Unique.Add(id,row);else c.BlockedNames.Add(MatchName(old));
             }return c;
         }
         public RoomEntry Find(string id){RoomEntry row;return Unique.TryGetValue(Key(id),out row)?row:null;}
